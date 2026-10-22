@@ -4,6 +4,13 @@ Project #2 — Automotive Instrument Cluster Module Using Trampoline RTOS\
 Sistemas Embarcados, PPGEE UTFPR Ponta Grossa — Prof. Max Mauro Dias Santos\
 Osvaldo Janeri Filho <janeri@gmail.com>
 
+[![CI](https://github.com/ojaneri/ee-icm-trampoline/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ojaneri/ee-icm-trampoline/actions/workflows/ci.yml)
+
+The badge tracks `main`. It goes green when the unit tests pass under the
+sanitizers, the static checks pass, and the whole RTOS integration suite
+passes on a virtual CAN bus on a GitHub runner: timing, faults, the race test
+and its negative control, overload and overrun.
+
 An automotive instrument cluster prototype with **deterministic real-time
 control**: six OSEK tasks on [Trampoline](https://github.com/TrampolineRTOS/trampoline)
 (OSEK/VDX, API aligned with AUTOSAR OS 4.2), CAN input with interrupt and
