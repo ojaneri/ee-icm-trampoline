@@ -68,6 +68,10 @@ r = icm_runner.run('nominal', 'nominal', name='nominal-sched_other')
 " && { echo "run: nominal-sched_other"; cat build/runs/nominal-sched_other/run.json; echo;
        $PY tools/analyze_timing.py build/runs/nominal-sched_other; } > "$EV/05_timing_nominal-sched_other.md"
 
+# End-to-end detection latencies of the fault run (PR #5 review: these used
+# to be computed by hand and pasted, so nothing in the repository held them).
+$PY tools/fault_latencies.py build/runs/nominal-faults > "$EV/08_fault_latencies.txt"
+
 # One dashboard frame per interesting moment of the fault run.
 $PY - <<'EOF' > "$EV/07_dashboard_frames.txt"
 import sys; sys.path.insert(0, 'tests/integration')
