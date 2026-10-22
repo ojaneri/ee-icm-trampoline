@@ -1,0 +1,9 @@
+run: build/runs/nominal-faults
+M2 timeout: last M2 at sim t=4.003 -> CONFIRMED after 3.102 s
+M2 heal: first M2 back at t=10.003 -> HEALED after 0.920 s
+RPM 9000: first bad M1 at t=11.000 -> CONFIRMED after 0.224 s
+Speed 300: first bad M2 at t=15.003 -> CONFIRMED after 0.240 s
+CRC: 2 corrupt M3 frames sent, cluster crc counter = 2; CONFIRMED after 0.250 s
+Frozen counter: 8 M4 frames, cluster cnt = 8; M4 TIMEOUT CONFIRMED 0.258 s after first frozen frame
+M4 timeout: last M4 at t=22.409 -> CONFIRMED after 0.369 s
+burst: M1 rx=264/27/30/292 ovr=0

@@ -206,7 +206,9 @@ The last two lines are not faults of the scenario: the simulator stops at
 they should.
 
 End-to-end latencies, frame on the bus (simulator's CLOCK_MONOTONIC stamp) to
-DTC confirmed (cluster's stamp, same clock), computed from the run directory:
+DTC confirmed (cluster's stamp, same clock), computed by
+`tools/fault_latencies.py` from the run directory,
+[`08_fault_latencies.txt`](../docs/evidence/08_fault_latencies.txt):
 
 ```text
 M2 timeout: last M2 at sim t=4.003 -> CONFIRMED after 3.102 s
