@@ -1,0 +1,239 @@
+/*
+ * ICM — Instrument Cluster Module on Trampoline RTOS
+ * OSEK/VDX OIL configuration, processed by GOIL.
+ * Project #2, Sistemas Embarcados, UTFPR — Prof. Max Mauro Dias Santos
+ * Osvaldo Janeri Filho <janeri@gmail.com>
+ *
+ * This is the real configuration of the application. Three placeholders are
+ * filled in by tools/build.sh before GOIL runs:
+ *
+ *   @TPL_BASE@     path of the Trampoline checkout (third_party/trampoline)
+ *   @ICM_SRC@      absolute path of this src/ directory
+ *   @ICM_CFLAGS@   empty for the product, -D... for the test builds
+ *
+ * We template rather than hard-code because GOIL resolves both paths relative
+ * to the directory it runs in, and every build variant runs it in its own
+ * directory (build/nominal, build/race_locked, ...). The objects below are
+ * identical in every variant; only the C flags differ.
+ *
+ * Priorities: a higher number is a higher priority in Trampoline.
+ * See requirements/architecture.md for the rationale of each value.
+ */
+OIL_VERSION = "2.5";
+
+IMPLEMENTATION trampoline {
+  /* The POSIX port runs each task on its own stack inside the process.
+   * 32 KiB is the value the upstream POSIX examples use; our deepest task
+   * (Task_Display) needs about 12 KiB with the snapshot and the 4 KiB frame
+   * buffer on it, so there is headroom without being wasteful. */
+  TASK { UINT32 STACKSIZE = 32768; };
+  ISR  { UINT32 STACKSIZE = 32768; };
+};
+
+CPU icm {
+
+  OS icm_os {
+    /* EXTENDED: every OS service checks its arguments and the caller's
+     * rights (e.g. GetResource by a task not declared as a user of that
+     * resource returns E_OS_ACCESS). Slower than STANDARD, which is the
+     * right trade for a prototype whose purpose is to prove the design. */
+    STATUS = EXTENDED;
+    STARTUPHOOK = TRUE;   /* starts the virtual CAN controller            */
+    SHUTDOWNHOOK = TRUE;  /* dumps the timing trace                       */
+    ERRORHOOK = TRUE;     /* E_OS_LIMIT on activation = deadline overrun  */
+    PRETASKHOOK = TRUE;   /* per-job execution time, net of preemption    */
+    POSTTASKHOOK = TRUE;
+    USEGETSERVICEID = TRUE;     /* ErrorHook needs to know which service  */
+    USEPARAMETERACCESS = TRUE;  /* ... and which task it was about        */
+
+    BUILD = TRUE {
+      TRAMPOLINE_BASE_PATH = "@TPL_BASE@";
+      APP_NAME = "icm_exe";
+      APP_SRC = "@ICM_SRC@/icm_app.c";
+      APP_SRC = "@ICM_SRC@/icm_data.c";
+      APP_SRC = "@ICM_SRC@/icm_trace.c";
+      APP_SRC = "@ICM_SRC@/can_ctrl.c";
+      APP_SRC = "@ICM_SRC@/can_db.c";
+      APP_SRC = "@ICM_SRC@/signal_proc.c";
+      APP_SRC = "@ICM_SRC@/diag.c";
+      APP_SRC = "@ICM_SRC@/dashboard.c";
+      CFLAGS = "-g -std=gnu11 -Wall @ICM_CFLAGS@";
+      LDFLAGS = "-lpthread";
+      LINKER = "gcc";
+      SYSTEM = PYTHON;
+    };
+  };
+
+  APPMODE ICM_AppMode {};
+
+  /* ------------------------------------------------------------------
+   * COUNTER
+   * SystemCounter is predeclared by GOIL for every target; on the POSIX
+   * port ViPER ticks it every 10 ms. Restated here so the configuration
+   * says what the application relies on.
+   * ------------------------------------------------------------------ */
+  COUNTER SystemCounter {
+    TICKSPERBASE = 1;
+    MAXALLOWEDVALUE = 4294967295;  /* 32 bits, as the POSIX target */
+    MINCYCLE = 1;
+  };
+
+  /* ------------------------------------------------------------------
+   * TASKS
+   * ACTIVATION = 1 everywhere: a periodic task whose next activation
+   * arrives before the current job ends must not queue a second job
+   * (that would hide the overrun and pile up latency); it must fail with
+   * E_OS_LIMIT so ErrorHook can report it.
+   * ------------------------------------------------------------------ */
+
+  /* Runs once at start-up, arms the alarms. Above everything so nothing
+   * else can run before the system is configured. */
+  TASK Task_Init {
+    PRIORITY = 10;
+    AUTOSTART = TRUE { APPMODE = ICM_AppMode; };
+    ACTIVATION = 1;
+    SCHEDULE = FULL;
+  };
+
+  /* Event driven (extended task). Highest application priority: a frame
+   * sitting in the driver queue is data the next acquisition cycle needs,
+   * and the queue is finite. */
+  TASK Task_CAN_RX {
+    PRIORITY = 6;
+    AUTOSTART = TRUE { APPMODE = ICM_AppMode; };
+    ACTIVATION = 1;
+    SCHEDULE = FULL;
+    EVENT = EV_CAN_RX;
+    EVENT = EV_CAN_ERROR;
+    RESOURCE = ICM_Resource;
+  };
+
+  /* Periodic tasks: rate-monotonic order, shorter period = higher priority. */
+  TASK Task_Acquisition {
+    PRIORITY = 5;
+    AUTOSTART = FALSE;
+    ACTIVATION = 1;
+    SCHEDULE = FULL;
+    RESOURCE = ICM_Resource;
+  };
+
+  TASK Task_Processing {
+    PRIORITY = 4;
+    AUTOSTART = FALSE;
+    ACTIVATION = 1;
+    SCHEDULE = FULL;
+    RESOURCE = ICM_Resource;
+  };
+
+  TASK Task_Display {
+    PRIORITY = 3;
+    AUTOSTART = FALSE;
+    ACTIVATION = 1;
+    SCHEDULE = FULL;
+    RESOURCE = ICM_Resource;
+    RESOURCE = RES_CONSOLE;
+  };
+
+  TASK Task_Diagnostics {
+    PRIORITY = 2;
+    AUTOSTART = FALSE;
+    ACTIVATION = 1;
+    SCHEDULE = FULL;
+    RESOURCE = ICM_Resource;
+    RESOURCE = RES_CONSOLE;
+  };
+
+  TASK Task_Logging {
+    PRIORITY = 1;
+    AUTOSTART = FALSE;
+    ACTIVATION = 1;
+    SCHEDULE = FULL;
+    RESOURCE = ICM_Resource;
+    RESOURCE = RES_CONSOLE;
+  };
+
+  /* Ends a bounded test run (ICM_RUN_SECONDS). */
+  TASK Task_Shutdown {
+    PRIORITY = 10;
+    AUTOSTART = FALSE;
+    ACTIVATION = 1;
+    SCHEDULE = FULL;
+  };
+
+  /* ------------------------------------------------------------------
+   * EVENTS (owned by Task_CAN_RX)
+   * ------------------------------------------------------------------ */
+  EVENT EV_CAN_RX    { MASK = AUTO; };  /* frames waiting in the queue   */
+  EVENT EV_CAN_ERROR { MASK = AUTO; };  /* controller or queue overrun   */
+
+  /* ------------------------------------------------------------------
+   * RESOURCES (OSEK priority ceiling protocol)
+   * GOIL computes each ceiling as the highest priority among the tasks
+   * that list the resource:
+   *   ICM_Resource: CAN_RX(6) ACQ(5) PROC(4) DISP(3) DIAG(2) LOG(1) -> 6
+   *   RES_CONSOLE:  DISP(3) DIAG(2) LOG(1)                          -> 3
+   * The two are never held at the same time (icm_app.c releases the data
+   * before formatting and printing), so their order never matters.
+   * ------------------------------------------------------------------ */
+  RESOURCE ICM_Resource { RESOURCEPROPERTY = STANDARD; };
+  RESOURCE RES_CONSOLE  { RESOURCEPROPERTY = STANDARD; };
+
+  /* ------------------------------------------------------------------
+   * ISR
+   * Category 2, so it may call SetEvent. On the POSIX port an interrupt
+   * source is a Unix signal; the virtual CAN controller raises SIGQUIT.
+   * ------------------------------------------------------------------ */
+  ISR ISR_CAN_RX {
+    CATEGORY = 2;
+    PRIORITY = 1;
+    SOURCE = SIGQUIT;
+  };
+
+  /* ------------------------------------------------------------------
+   * ALARMS on SystemCounter. The periodic ones are armed by Task_Init
+   * with SetRelAlarm (same first expiry for all: synchronous release,
+   * i.e. the critical instant, see icm_config.h).
+   * ------------------------------------------------------------------ */
+  ALARM ALARM_Acquisition {
+    COUNTER = SystemCounter;
+    ACTION = ACTIVATETASK { TASK = Task_Acquisition; };
+    AUTOSTART = FALSE;
+  };
+
+  ALARM ALARM_Processing {
+    COUNTER = SystemCounter;
+    ACTION = ACTIVATETASK { TASK = Task_Processing; };
+    AUTOSTART = FALSE;
+  };
+
+  ALARM ALARM_Display {
+    COUNTER = SystemCounter;
+    ACTION = ACTIVATETASK { TASK = Task_Display; };
+    AUTOSTART = FALSE;
+  };
+
+  ALARM ALARM_Diagnostics {
+    COUNTER = SystemCounter;
+    ACTION = ACTIVATETASK { TASK = Task_Diagnostics; };
+    AUTOSTART = FALSE;
+  };
+
+  ALARM ALARM_Logging {
+    COUNTER = SystemCounter;
+    ACTION = ACTIVATETASK { TASK = Task_Logging; };
+    AUTOSTART = FALSE;
+  };
+
+  ALARM ALARM_Shutdown {
+    COUNTER = SystemCounter;
+    ACTION = ACTIVATETASK { TASK = Task_Shutdown; };
+    AUTOSTART = FALSE;
+  };
+
+  /* Every tick: timestamps the tick for the timing trace. */
+  ALARM ALARM_TickProbe {
+    COUNTER = SystemCounter;
+    ACTION = ALARMCALLBACK { ALARMCALLBACKNAME = "TickProbe"; };
+    AUTOSTART = TRUE { APPMODE = ICM_AppMode; ALARMTIME = 1; CYCLETIME = 1; };
+  };
+};
