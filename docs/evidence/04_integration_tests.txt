@@ -1,0 +1,99 @@
+$ bash -c cd tests/integration && /root/icm-work/venv/bin/python -m unittest -v
+test_ICM_F_01_to_04_ids_and_periods (test_dbc_consistency.ConfigVsSimulator.test_ICM_F_01_to_04_ids_and_periods)
+ICM-F-01 ICM-F-02 ICM-F-03 ICM-F-04: identifiers and periods. ... ok
+test_ICM_F_05_scaling_factors (test_dbc_consistency.ConfigVsSimulator.test_ICM_F_05_scaling_factors)
+ICM-F-05: factor and offset of every scaled signal. ... ok
+test_ICM_F_01_to_04_dbc_ids_and_cycle_times (test_dbc_consistency.DbcVsSimulator.test_ICM_F_01_to_04_dbc_ids_and_cycle_times)
+ICM-F-01 ICM-F-02 ICM-F-03 ICM-F-04: DBC frame ids and ... ok
+test_ICM_F_05_dbc_encoding_equals_simulator_bytes (test_dbc_consistency.DbcVsSimulator.test_ICM_F_05_dbc_encoding_equals_simulator_bytes)
+ICM-F-05: for a spread of physical values, encoding with the DBC ... ok
+test_ICM_S_01_m2_timeout_detected_after_3_periods (test_faults.Faults.test_ICM_S_01_m2_timeout_detected_after_3_periods)
+ICM-S-01 ICM-S-04: losing M2 (1000 ms) is confirmed 3 s after its ... ok
+test_ICM_S_01_m4_timeout_detected (test_faults.Faults.test_ICM_S_01_m4_timeout_detected)
+ICM-S-01: losing M4 (100 ms) is confirmed 0.3..0.55 s after its ... ok
+test_ICM_S_02_rpm_out_of_range_detected (test_faults.Faults.test_ICM_S_02_rpm_out_of_range_detected)
+ICM-S-02 ICM-S-04: 9000 rpm (above 8000) is rejected, confirmed ... ok
+test_ICM_S_02_speed_out_of_range_detected (test_faults.Faults.test_ICM_S_02_speed_out_of_range_detected)
+ICM-S-02 ICM-S-04: 300 km/h (above 250) is rejected and confirmed ... ok
+test_ICM_S_03_crc_errors_counted_and_reported (test_faults.Faults.test_ICM_S_03_crc_errors_counted_and_reported)
+ICM-S-03: every M3 frame sent with a bad CRC is counted and ... ok
+test_ICM_S_03_frozen_alive_counter_rejected (test_faults.Faults.test_ICM_S_03_frozen_alive_counter_rejected)
+ICM-S-03 ICM-S-01: frames that repeat the alive counter are stale ... ok
+test_ICM_S_04_m2_timeout_heals_after_recovery (test_faults.Faults.test_ICM_S_04_m2_timeout_heals_after_recovery)
+ICM-S-04: once M2 is back, the DTC heals after 10 good cycles ... ok
+test_ICM_S_05_body_loss_turns_indicators_off (test_faults.Faults.test_ICM_S_05_body_loss_turns_indicators_off)
+ICM-S-05: the drive cycle has the right indicator on from 22 to 25 s, ... ok
+test_ICM_S_05_m2_timeout_shows_dashes_and_message (test_faults.Faults.test_ICM_S_05_m2_timeout_shows_dashes_and_message)
+ICM-S-05: while the speed is unknown the speedometer shows ---, ... ok
+test_ICM_S_05_rpm_out_of_range_never_displayed (test_faults.Faults.test_ICM_S_05_rpm_out_of_range_never_displayed)
+ICM-S-05: the 9000 rpm value never reaches the tachometer. ... ok
+test_ICM_S_06_burst_absorbed_without_loss (test_faults.Faults.test_ICM_S_06_burst_absorbed_without_loss)
+ICM-S-06 ICM-T-06: 200 M1 frames sent as fast as the sender can go ... ok
+test_ICM_T_07_deadlines_hold_during_faults (test_faults.Faults.test_ICM_T_07_deadlines_hold_during_faults)
+ICM-T-07: fault handling costs no deadline: zero misses and zero ... ok
+test_ICM_T_08_overrun_detected_by_errorhook (test_overload.Overload.test_ICM_T_08_overrun_detected_by_errorhook)
+ICM-T-08: E_OS_LIMIT on the activation of Task_Diagnostics is ... ok
+test_ICM_T_08_overrun_reported_as_dtc_and_healed (test_overload.Overload.test_ICM_T_08_overrun_reported_as_dtc_and_healed)
+ICM-T-08 ICM-S-04: DTC 0x31 is confirmed during the overload and ... ok
+test_ICM_T_09_higher_priority_tasks_unaffected (test_overload.Overload.test_ICM_T_09_higher_priority_tasks_unaffected)
+ICM-T-09: CAN_RX, Acquisition, Processing and Display miss nothing ... ok
+test_ICM_S_06_every_frame_received_or_counted (test_overrun.Overrun.test_ICM_S_06_every_frame_received_or_counted)
+ICM-S-06: frames sent (all messages: whatever arrives during the ... ok
+test_ICM_S_06_overrun_reported (test_overrun.Overrun.test_ICM_S_06_overrun_reported)
+ICM-S-06: DTC 0x22 CAN_RX_OVERRUN is confirmed. ... ok
+test_ICM_T_01_lost_ticks_during_interrupt_lock (test_overrun.Overrun.test_ICM_T_01_lost_ticks_during_interrupt_lock)
+ICM-T-01 (documented limitation): during the lock no tick is ... ok
+test_ICM_T_08_late_frames_caught_by_deadline_monitor (test_overrun.Overrun.test_ICM_T_08_late_frames_caught_by_deadline_monitor)
+ICM-T-08: frames that waited out the 200 ms lock exceed the 10 ms ... ok
+test_ICM_D_01_ICM_D_04_no_torn_copy_with_resource (test_race.RaceLocked.test_ICM_D_01_ICM_D_04_no_torn_copy_with_resource)
+ICM-D-01 ICM-D-02 ICM-D-04: with ICM_Resource held, a reader that ... ok
+test_ICM_D_02_blocking_is_bounded_by_one_critical_section (test_race.RaceLocked.test_ICM_D_02_blocking_is_bounded_by_one_critical_section)
+ICM-D-02: under the ceiling protocol a higher-priority task is ... ok
+test_ICM_T_08_blocking_longer_than_a_deadline_is_caught (test_race.RaceLocked.test_ICM_T_08_blocking_longer_than_a_deadline_is_caught)
+ICM-T-08 ICM-D-02: the price of the ceiling. A 12 ms critical ... ok
+test_ICM_D_04_torn_copies_without_resource (test_race.RaceUnlockedNegativeControl.test_ICM_D_04_torn_copies_without_resource)
+ICM-D-04 (negative control): without the resource the very same ... ok
+test_ICM_F_01_ICM_F_05_cruise_rpm (test_signals.NominalSignals.test_ICM_F_01_ICM_F_05_cruise_rpm)
+ICM-F-01 ICM-F-05: in top gear at 120 km/h the engine turns ... ok
+test_ICM_F_02_ICM_F_05_cruise_speed (test_signals.NominalSignals.test_ICM_F_02_ICM_F_05_cruise_speed)
+ICM-F-02 ICM-F-05: at 120 km/h cruise (drive cycle 14..20 s) the ... ok
+test_ICM_F_03_ICM_F_06_fuel_and_temperature (test_signals.NominalSignals.test_ICM_F_03_ICM_F_06_fuel_and_temperature)
+ICM-F-03 ICM-F-06: fuel follows 65 - 0.05 t % (filtered, tau 5 s, ... ok
+test_ICM_F_04_ICM_F_07_turn_indicators (test_signals.NominalSignals.test_ICM_F_04_ICM_F_07_turn_indicators)
+ICM-F-04 ICM-F-07: left indicator 3..6 s, right 22..25 s, hazard ... ok
+test_ICM_F_07_dashboard_frames_are_rendered (test_signals.NominalSignals.test_ICM_F_07_dashboard_frames_are_rendered)
+ICM-F-07: one frame per second reaches the log in plain mode, and ... ok
+test_ICM_S_04_no_dtc_in_nominal_traffic (test_signals.NominalSignals.test_ICM_S_04_no_dtc_in_nominal_traffic)
+ICM-S-04: with every ECU healthy no DTC is ever confirmed, start-up ... ok
+test_ICM_D_03_no_os_api_error (test_timing.NominalTiming.test_ICM_D_03_no_os_api_error)
+ICM-D-03: with STATUS = EXTENDED every misuse of an OS service ... ok
+test_ICM_D_04_no_torn_snapshot (test_timing.NominalTiming.test_ICM_D_04_no_torn_snapshot)
+ICM-D-04: every copy of ICM_Data taken in the run was consistent. ... ok
+test_ICM_T_01_to_05_release_grid_is_exact_in_ticks (test_timing.NominalTiming.test_ICM_T_01_to_05_release_grid_is_exact_in_ticks)
+ICM-T-01 ICM-T-02 ICM-T-03 ICM-T-04 ICM-T-05: each periodic task is ... ok
+test_ICM_T_01_to_05_wall_clock_period (test_timing.NominalTiming.test_ICM_T_01_to_05_wall_clock_period)
+ICM-T-01 ICM-T-02 ICM-T-03 ICM-T-04 ICM-T-05: the mean period ... ok
+test_ICM_T_06_can_frame_to_data_within_10ms (test_timing.NominalTiming.test_ICM_T_06_can_frame_to_data_within_10ms)
+ICM-T-06: every frame is decoded into ICM_Data within 10 ms of the ... ok
+test_ICM_T_06_no_frame_lost_in_nominal_traffic (test_timing.NominalTiming.test_ICM_T_06_no_frame_lost_in_nominal_traffic)
+ICM-T-06: every frame the simulator sent was accepted (rx counters ... ok
+test_ICM_T_07_every_job_starts_in_its_release_tick (test_timing.NominalTiming.test_ICM_T_07_every_job_starts_in_its_release_tick)
+ICM-T-07: under fixed-priority preemptive scheduling with U ~ 2 %, ... ok
+test_ICM_T_07_no_deadline_miss (test_timing.NominalTiming.test_ICM_T_07_no_deadline_miss)
+ICM-T-07: response time (release -> end) <= period for every job ... ok
+test_ICM_T_07_schedulable_by_analysis (test_timing.NominalTiming.test_ICM_T_07_schedulable_by_analysis)
+ICM-T-07: with the measured worst-case execution times, utilisation ... ok
+test_ICM_F_08_low_fuel_lamp (test_warnings.Warnings.test_ICM_F_08_low_fuel_lamp)
+ICM-F-08: 8 % is below the 10 % threshold: the lamp is on from the ... ok
+test_ICM_F_08_overheat_on_and_off_with_hysteresis (test_warnings.Warnings.test_ICM_F_08_overheat_on_and_off_with_hysteresis)
+ICM-F-08: the lamp comes on once the (filtered) coolant temperature ... ok
+test_ICM_F_08_redline (test_warnings.Warnings.test_ICM_F_08_redline)
+ICM-F-08: 7000 rpm is above the 6500 rpm redline and is shown. ... ok
+test_ICM_S_04_warnings_are_not_faults (test_warnings.Warnings.test_ICM_S_04_warnings_are_not_faults)
+ICM-S-04: in-range values never raise a DTC. ... ok
+
+----------------------------------------------------------------------
+Ran 46 tests in 148.593s
+
+OK
+[exit status 0]

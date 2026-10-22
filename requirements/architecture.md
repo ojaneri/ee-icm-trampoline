@@ -92,7 +92,8 @@ Task_CAN_RX sits **above** all periodic tasks (6) because:
 
 Raising a sporadic task above periodic ones is safe only if its load is
 bounded. It is: the bus carries at most 14 frames/s nominally, and even the
-1 kHz babbling-sender scenario costs Task_CAN_RX about 1 % of the CPU.
+1 kHz babbling-sender scenario costs Task_CAN_RX under 1 % of the CPU
+(1000 jobs/s × 4.5 µs mean execution time).
 
 Task_Init and Task_Shutdown (10) are above everything so that the system is
 configured before any task runs and stops without a task in mid-job.

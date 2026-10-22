@@ -1,0 +1,32 @@
+$ bash -c cmake -S . -B build/unit -DCMAKE_BUILD_TYPE=Debug   -DCMAKE_C_FLAGS='-fsanitize=address,undefined -fno-sanitize-recover=all' >/dev/null   && cmake --build build/unit >/dev/null && ctest --test-dir build/unit --output-on-failure -V | grep -E '^\S*[0-9]+: \[|tests passed|checks'
+1: [  OK  ] test_ICM_S_03_crc8_check_value
+1: [  OK  ] test_ICM_F_01_to_04_golden_frames_decode
+1: [  OK  ] test_ICM_F_01_encode_decode_roundtrip
+1: [  OK  ] test_ICM_S_03_every_single_bit_flip_is_rejected
+1: [  OK  ] test_ICM_S_03_crc_covers_the_identifier
+1: [  OK  ] test_ICM_S_03_bad_dlc_and_unknown_id
+1: [  OK  ] test_ICM_S_03_alive_counter
+1: 97 checks, 0 failed
+2: [  OK  ] test_ICM_S_02_speed_range_boundaries
+2: [  OK  ] test_ICM_S_02_rpm_range_boundaries
+2: [  OK  ] test_ICM_S_02_fuel_and_temp_boundaries
+2: [  OK  ] test_ICM_F_05_scaling
+2: [  OK  ] test_ICM_S_01_timeout_boundary_and_wrap
+2: [  OK  ] test_ICM_S_01_status_combination
+2: [  OK  ] test_ICM_F_06_lowpass_filter
+2: [  OK  ] test_ICM_F_08_warning_hysteresis
+2: 49 checks, 0 failed
+3: [  OK  ] test_ICM_S_04_confirm_after_n_failures
+3: [  OK  ] test_ICM_S_04_intermittent_fault_does_not_confirm
+3: [  OK  ] test_ICM_S_04_heal_after_m_passes
+3: [  OK  ] test_ICM_S_04_dtc_table
+3: 190 checks, 0 failed
+4: [  OK  ] test_ICM_F_07_fixed_width_frame
+4: [  OK  ] test_ICM_F_07_shows_values
+4: [  OK  ] test_ICM_S_05_invalid_signal_shows_dashes
+4: [  OK  ] test_ICM_F_07_blink_rate
+4: [  OK  ] test_ICM_S_05_body_loss_darkens_indicators
+4: [  OK  ] test_ICM_F_08_warning_lamps
+4: 37 checks, 0 failed
+100% tests passed, 0 tests failed out of 4
+[exit status 0]
