@@ -1,0 +1,6 @@
+# The code is edited on Windows and built on Linux. A shell script or a
+# Python shebang with CRLF fails on Linux with a confusing "bad interpreter",
+# so text files are always LF in the repository and in working copies.
+* text=auto eol=lf
+*.pptx binary
+*.png binary
