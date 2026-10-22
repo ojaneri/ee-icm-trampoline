@@ -17,6 +17,7 @@ jobs:
   unit-and-static:
     name: Unit tests (ASan/UBSan) and static checks
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -40,6 +41,10 @@ jobs:
   rtos-integration:
     name: Trampoline build and integration tests on vcan0
     runs-on: ubuntu-24.04
+    # The cluster runs as root under sudo chrt; if a run hangs, the test
+    # driver (an ordinary user) cannot kill it. Fail fast instead of waiting
+    # for GitHub's 6-hour default. Normal duration: about 5 min. (PR #4 review)
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
