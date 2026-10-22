@@ -1,0 +1,11 @@
+ICM READY mono_ns=7301289942841879 can=online race_window_us=0
+DIAG t=15.271 mono_ns=7301305213331053 DTC 0x04 M4_BODY_STATUS_TIMEOUT CONFIRMED
+SUMMARY snapshots=493 torn=0 race_window_us=0
+SUMMARY can_pushed=210 can_hw_dropped=0 can_drained=210 can_sw_dropped=0 can_popped=210
+SUMMARY task=Task_CAN_RX jobs=210 deadline_misses=0 os_overruns=0 max_response_us=153.0 max_exec_us=24.6
+SUMMARY task=Task_Acquisition jobs=1590 deadline_misses=0 os_overruns=0 max_response_us=63.7 max_exec_us=48.8
+SUMMARY task=Task_Processing jobs=795 deadline_misses=0 os_overruns=0 max_response_us=128.2 max_exec_us=117.7
+SUMMARY task=Task_Display jobs=318 deadline_misses=0 os_overruns=0 max_response_us=174.3 max_exec_us=153.3
+SUMMARY task=Task_Diagnostics jobs=159 deadline_misses=0 os_overruns=0 max_response_us=187.9 max_exec_us=41.7
+SUMMARY task=Task_Logging jobs=16 deadline_misses=0 os_overruns=0 max_response_us=159.9 max_exec_us=15.1
+SUMMARY os_api_errors=0 last_error=0 last_service=0 ticks=1600

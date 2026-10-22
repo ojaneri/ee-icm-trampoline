@@ -1,0 +1,50 @@
+$ tools/build.sh race_unlocked
+== GOIL: generating the OS configuration for 'race_unlocked'
+[32m[1mReplaced 'icm/tpl_os.c'.
+[0m[32m[1mReplaced 'icm/tpl_os.h'.
+[0m[32m[1mReplaced 'icm/tpl_service_ids.h'.
+[0m[32m[1mReplaced 'build.py'.
+[0m[32m[1mReplaced 'make.py'.
+[0m[32m[1mReplaced 'icm/tpl_app_custom_types.h'.
+[0m[32m[1mReplaced 'icm/tpl_app_config.c'.
+[0m[32m[1mReplaced 'icm/tpl_app_config.h'.
+[0m[32m[1mReplaced 'icm/tpl_app_define.h'.
+[0m[32m[1mReplaced 'icm/tpl_static_info.json'.
+[0mexecuting plugin gdb_commands.goilTemplate
+[32m[1mReplaced '/root/icm-work/ee-icm-trampoline/build/race_unlocked/build/icm.oil.dep'.
+[0mNo warning, no error.
+== compiling and linking
+[  4%] [1m[94mCompiling /root/icm-work/trampoline/os/tpl_os_kernel.c[0m
+[  8%] [1m[94mCompiling /root/icm-work/trampoline/os/tpl_os_timeobj_kernel.c[0m
+[ 12%] [1m[94mCompiling /root/icm-work/trampoline/os/tpl_os_action.c[0m
+[ 16%] [1m[94mCompiling /root/icm-work/trampoline/os/tpl_os_error.c[0m
+[ 20%] [1m[94mCompiling /root/icm-work/trampoline/os/tpl_os_os_kernel.c[0m
+[ 25%] [1m[94mCompiling /root/icm-work/trampoline/os/tpl_os_os.c[0m
+[ 29%] [1m[94mCompiling /root/icm-work/trampoline/os/tpl_os_interrupt_kernel.c[0m
+[ 33%] [1m[94mCompiling /root/icm-work/trampoline/os/tpl_os_task_kernel.c[0m
+[ 37%] [1m[94mCompiling /root/icm-work/trampoline/os/tpl_os_resource_kernel.c[0m
+[ 41%] [1m[94mCompiling /root/icm-work/trampoline/os/tpl_os_event_kernel.c[0m
+/root/icm-work/trampoline/os/tpl_os_kernel.c: In function ‘tpl_init_os’:
+/root/icm-work/trampoline/os/tpl_os_kernel.c:1182:30: warning: variable ‘result’ set but not used [-Wunused-but-set-variable]
+ 1182 |   VAR(tpl_status, AUTOMATIC) result = E_OK;
+      |                              ^~~~~~
+[ 45%] [1m[94mCompiling /root/icm-work/trampoline/os/tpl_os_alarm_kernel.c[0m
+[ 50%] [1m[94mCompiling /root/icm-work/ee-icm-trampoline/src/icm_app.c[0m
+[ 54%] [1m[94mCompiling /root/icm-work/ee-icm-trampoline/src/icm_data.c[0m
+[ 58%] [1m[94mCompiling /root/icm-work/ee-icm-trampoline/src/icm_trace.c[0m
+[ 62%] [1m[94mCompiling /root/icm-work/ee-icm-trampoline/src/can_ctrl.c[0m
+[ 66%] [1m[94mCompiling icm/tpl_app_config.c[0m
+[ 70%] [1m[94mCompiling icm/tpl_os.c[0m
+[ 75%] [1m[94mCompiling /root/icm-work/trampoline/machines/posix/tpl_machine_posix.c[0m
+/root/icm-work/ee-icm-trampoline/src/icm_data.c:42:2: warning: #warning "ICM_Data accessors built WITHOUT ICM_Resource (race_unlocked test build)" [-Wcpp]
+   42 | #warning "ICM_Data accessors built WITHOUT ICM_Resource (race_unlocked test build)"
+      |  ^~~~~~~
+[ 79%] [1m[94mCompiling /root/icm-work/trampoline/machines/posix/tpl_viper_interface.c[0m
+[ 83%] [1m[94mCompiling /root/icm-work/trampoline/machines/posix/tpl_posix_autosar.c[0m
+[ 87%] [1m[94mCompiling /root/icm-work/trampoline/machines/posix/tpl_posix_irq.c[0m
+[ 91%] [1m[94mCompiling /root/icm-work/trampoline/machines/posix/tpl_posix_context.c[0m
+[ 95%] [1m[94mCompiling /root/icm-work/trampoline/machines/posix/tpl_posixvp_irq_gen.c[0m
+[100%] [1m[94mLinking icm_exe[0m
+[1m[94mNothing to make.[0m
+== built /root/icm-work/ee-icm-trampoline/build/race_unlocked/icm_exe
+[exit status 0]
