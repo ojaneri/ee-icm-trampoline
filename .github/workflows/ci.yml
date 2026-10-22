@@ -1,0 +1,103 @@
+# ICM — Instrument Cluster Module on Trampoline RTOS — CI
+# Osvaldo Janeri Filho <janeri@gmail.com>
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# A push to a branch that has a PR open fires both triggers, so without this
+# every commit on a PR branch builds twice.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-and-static:
+    name: Unit tests (ASan/UBSan) and static checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure with sanitizers
+        run: >
+          cmake -S . -B build/unit -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all"
+
+      - name: Build
+        run: cmake --build build/unit --parallel
+
+      - name: Unit tests
+        run: ctest --test-dir build/unit --output-on-failure
+
+      - name: ICM_Data is reachable only through its accessors
+        run: python3 tools/check_shared_access.py
+
+      - name: Every requirement has a test, every test a requirement
+        run: python3 tools/check_traceability.py
+
+  rtos-integration:
+    name: Trampoline build and integration tests on vcan0
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # The runner kernel ships vcan in linux-modules-extra, which is not
+      # installed by default.
+      - name: Virtual CAN interface
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq "linux-modules-extra-$(uname -r)"
+          sudo modprobe vcan
+          sudo ip link add dev vcan0 type vcan
+          sudo ip link set up vcan0
+          ip -br link show vcan0
+
+      # GOIL takes a minute or two to compile; the pinned commit is in the
+      # script, so the script's hash is the right cache key.
+      - name: Cache Trampoline (GOIL + ViPER)
+        uses: actions/cache@v4
+        with:
+          path: third_party/trampoline
+          key: trampoline-${{ runner.os }}-${{ hashFiles('tools/setup_trampoline.sh') }}
+
+      - name: Trampoline toolchain
+        run: tools/setup_trampoline.sh
+
+      - name: GOIL + build, all five variants
+        run: |
+          for v in nominal race_locked race_unlocked overload irq_lock; do
+            tools/build.sh "$v"
+          done
+
+      - name: Python environment (cantools for the DBC check)
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -q cantools
+
+      # SCHED_FIFO needs root; the cluster runs under sudo chrt, the test
+      # driver as the normal user.
+      - name: Integration tests
+        env:
+          ICM_RT_PREFIX: sudo -E chrt -f 50
+        run: cd tests/integration && ../../.venv/bin/python -m unittest -v
+
+      - name: Timing tables to the job summary
+        if: always()
+        run: |
+          sudo chown -R "$USER" build/runs || true
+          for d in build/runs/*/; do
+            [ -f "$d/jobs.csv" ] || continue
+            echo "### $(basename "$d")" >> "$GITHUB_STEP_SUMMARY"
+            .venv/bin/python tools/analyze_timing.py "$d" >> "$GITHUB_STEP_SUMMARY" || true
+            echo >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Keep the run traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: icm-runs
+          path: build/runs/
+          retention-days: 30
