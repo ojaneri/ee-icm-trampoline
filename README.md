@@ -169,9 +169,9 @@ From the runs in [requirements/test_evidence.md](requirements/test_evidence.md)
 | Requirements covered | 28 of 28 |
 | Periodic releases on the exact tick | 100 % of jobs, every task |
 | Deadline misses, nominal and fault runs | 0 |
-| CAN frame → ICM_Data, worst case | 0.2 ms (deadline 10 ms) |
-| CPU utilisation | ≈ 1.5 % (Liu & Layland bound for 6 tasks: 73.5 %) |
-| M2 loss detected after last frame | 3.0–3.3 s (timeout: 3 periods = 3 s) |
+| CAN frame → ICM_Data, worst case | 0.16 ms (deadline 10 ms) |
+| CPU utilisation, from worst measured execution times | 2.9 % (Liu & Layland bound for 6 tasks: 73.5 %) |
+| M2 loss detected after last frame | 3.10 s (timeout: 3 periods = 3 s) |
 | Torn ICM_Data copies with / without the resource | 0 / 199 (of ~400 slow copies) |
 
 ## Team workflow
