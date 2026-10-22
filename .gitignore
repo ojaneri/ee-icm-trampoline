@@ -1,0 +1,8 @@
+# build outputs (GOIL-generated configuration, objects, run traces)
+build/
+# Trampoline checkout made by tools/setup_trampoline.sh
+third_party/
+# Python
+__pycache__/
+*.pyc
+.venv/

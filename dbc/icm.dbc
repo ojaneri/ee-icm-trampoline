@@ -1,0 +1,67 @@
+VERSION "ICM 1.0"
+
+
+NS_ :
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	BA_DEF_DEF_
+
+BS_:
+
+BU_: ECM ABS BCM ICM
+
+
+BO_ 256 M1_EngineSpeed: 8 ECM
+ SG_ EngineSpeed : 0|16@1+ (0.25,0) [0|8000] "rpm" ICM
+ SG_ M1_AliveCounter : 48|4@1+ (1,0) [0|15] "" ICM
+ SG_ M1_CRC : 56|8@1+ (1,0) [0|255] "" ICM
+
+BO_ 512 M2_VehicleSpeed: 8 ABS
+ SG_ VehicleSpeed : 0|16@1+ (0.01,0) [0|250] "km/h" ICM
+ SG_ M2_AliveCounter : 48|4@1+ (1,0) [0|15] "" ICM
+ SG_ M2_CRC : 56|8@1+ (1,0) [0|255] "" ICM
+
+BO_ 768 M3_EngineStatus: 8 ECM
+ SG_ FuelLevel : 0|8@1+ (0.5,0) [0|100] "%" ICM
+ SG_ CoolantTemp : 8|8@1+ (1,-40) [-40|150] "degC" ICM
+ SG_ M3_AliveCounter : 48|4@1+ (1,0) [0|15] "" ICM
+ SG_ M3_CRC : 56|8@1+ (1,0) [0|255] "" ICM
+
+BO_ 1024 M4_BodyStatus: 8 BCM
+ SG_ TurnLeft : 0|1@1+ (1,0) [0|1] "" ICM
+ SG_ TurnRight : 1|1@1+ (1,0) [0|1] "" ICM
+ SG_ Hazard : 2|1@1+ (1,0) [0|1] "" ICM
+ SG_ HighBeam : 3|1@1+ (1,0) [0|1] "" ICM
+ SG_ WarnOilPressure : 8|1@1+ (1,0) [0|1] "" ICM
+ SG_ WarnBattery : 9|1@1+ (1,0) [0|1] "" ICM
+ SG_ WarnBrake : 10|1@1+ (1,0) [0|1] "" ICM
+ SG_ WarnCheckEngine : 11|1@1+ (1,0) [0|1] "" ICM
+ SG_ WarnABS : 12|1@1+ (1,0) [0|1] "" ICM
+ SG_ WarnAirbag : 13|1@1+ (1,0) [0|1] "" ICM
+ SG_ WarnSeatbelt : 14|1@1+ (1,0) [0|1] "" ICM
+ SG_ WarnDoorOpen : 15|1@1+ (1,0) [0|1] "" ICM
+ SG_ M4_AliveCounter : 48|4@1+ (1,0) [0|15] "" ICM
+ SG_ M4_CRC : 56|8@1+ (1,0) [0|255] "" ICM
+
+
+CM_ "ICM - Instrument Cluster Module on Trampoline RTOS. Project #2, Sistemas Embarcados, UTFPR. Osvaldo Janeri Filho <janeri@gmail.com>. CRC = CRC-8 SAE J1850 (poly 0x1D, init 0xFF, xorout 0xFF) over [id_lo, id_hi, byte0..byte6].";
+CM_ BO_ 256 "Professor's M1. Period 500 ms, timeout 1500 ms.";
+CM_ BO_ 512 "Professor's M2. Period 1000 ms, timeout 3000 ms.";
+CM_ BO_ 768 "Project extension. Period 1000 ms, timeout 3000 ms.";
+CM_ BO_ 1024 "Project extension. Period 100 ms, timeout 300 ms.";
+CM_ SG_ 256 EngineSpeed "0xFFFF = signal not available, treated as out of range.";
+CM_ SG_ 512 VehicleSpeed "0xFFFF = signal not available, treated as out of range.";
+CM_ SG_ 768 FuelLevel "0xFF = signal not available. Raw above 200 is out of range.";
+CM_ SG_ 768 CoolantTemp "0xFF = signal not available. Raw above 190 (150 degC) is out of range.";
+BA_DEF_ BO_ "GenMsgCycleTime" INT 0 10000;
+BA_DEF_DEF_ "GenMsgCycleTime" 0;
+BA_ "GenMsgCycleTime" BO_ 256 500;
+BA_ "GenMsgCycleTime" BO_ 512 1000;
+BA_ "GenMsgCycleTime" BO_ 768 1000;
+BA_ "GenMsgCycleTime" BO_ 1024 100;
+VAL_ 256 EngineSpeed 65535 "SNA" ;
+VAL_ 512 VehicleSpeed 65535 "SNA" ;
+VAL_ 768 FuelLevel 255 "SNA" ;
+VAL_ 768 CoolantTemp 255 "SNA" ;
