@@ -1,0 +1,4 @@
+$ bash -c /root/icm-work/venv/bin/python tools/check_shared_access.py && /root/icm-work/venv/bin/python tools/check_traceability.py
+shared-access check: ICM_Data is only reachable through icm_data.c accessors; every accessor is balanced; every user task declares ICM_Resource in icm.oil
+traceability: 28 requirements, all covered; no test names a requirement that does not exist
+[exit status 0]

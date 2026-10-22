@@ -1,0 +1,16 @@
+ICM READY mono_ns=7301209030724788 can=online race_window_us=0
+DIAG t=3.214 mono_ns=7301212244595936 DTC 0x22 CAN_RX_OVERRUN CONFIRMED
+DIAG t=3.214 mono_ns=7301212244630942 DTC 0x31 TASK_DEADLINE_OVERRUN CONFIRMED
+DIAG t=5.103 mono_ns=7301214133109846 DTC 0x22 CAN_RX_OVERRUN HEALED
+DIAG t=8.316 mono_ns=7301217346155956 DTC 0x04 M4_BODY_STATUS_TIMEOUT CONFIRMED
+DIAG t=8.316 mono_ns=7301217346162619 DTC 0x31 TASK_DEADLINE_OVERRUN HEALED
+DIAG t=9.119 mono_ns=7301218149350427 DTC 0x01 M1_ENGINE_SPEED_TIMEOUT CONFIRMED
+SUMMARY snapshots=276 torn=0 race_window_us=0
+SUMMARY can_pushed=3908 can_hw_dropped=196 can_drained=3908 can_sw_dropped=0 can_popped=3908
+SUMMARY task=Task_CAN_RX jobs=3879 deadline_misses=1 os_overruns=0 max_response_us=189646.6 max_exec_us=105.8
+SUMMARY task=Task_Acquisition jobs=890 deadline_misses=0 os_overruns=0 max_response_us=69.1 max_exec_us=36.1
+SUMMARY task=Task_Processing jobs=445 deadline_misses=0 os_overruns=0 max_response_us=75.6 max_exec_us=10.5
+SUMMARY task=Task_Display jobs=178 deadline_misses=0 os_overruns=0 max_response_us=203.7 max_exec_us=183.5
+SUMMARY task=Task_Diagnostics jobs=89 deadline_misses=1 os_overruns=0 max_response_us=200204.7 max_exec_us=200070.7
+SUMMARY task=Task_Logging jobs=9 deadline_misses=0 os_overruns=0 max_response_us=242.5 max_exec_us=14.0
+SUMMARY os_api_errors=0 last_error=0 last_service=0 ticks=900

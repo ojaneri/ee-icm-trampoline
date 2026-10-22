@@ -1,0 +1,24 @@
+ICM READY mono_ns=7301157606445260 can=online race_window_us=0
+DIAG t=7.142 mono_ns=7301164748216522 DTC 0x02 M2_VEHICLE_SPEED_TIMEOUT CONFIRMED
+DIAG t=10.960 mono_ns=7301168565837270 DTC 0x02 M2_VEHICLE_SPEED_TIMEOUT HEALED
+DIAG t=11.261 mono_ns=7301168867318240 DTC 0x12 RPM_OUT_OF_RANGE CONFIRMED
+DIAG t=14.978 mono_ns=7301172584515947 DTC 0x12 RPM_OUT_OF_RANGE HEALED
+DIAG t=15.280 mono_ns=7301172886231537 DTC 0x11 SPEED_OUT_OF_RANGE CONFIRMED
+DIAG t=17.993 mono_ns=7301175599000195 DTC 0x11 SPEED_OUT_OF_RANGE HEALED
+DIAG t=18.294 mono_ns=7301175900452210 DTC 0x21 CAN_E2E_ERROR CONFIRMED
+DIAG t=20.304 mono_ns=7301177909899987 DTC 0x04 M4_BODY_STATUS_TIMEOUT CONFIRMED
+DIAG t=21.810 mono_ns=7301179416692527 DTC 0x04 M4_BODY_STATUS_TIMEOUT HEALED
+DIAG t=22.714 mono_ns=7301180320279590 DTC 0x21 CAN_E2E_ERROR HEALED
+DIAG t=22.814 mono_ns=7301180420701799 DTC 0x04 M4_BODY_STATUS_TIMEOUT CONFIRMED
+DIAG t=25.526 mono_ns=7301183132569575 DTC 0x04 M4_BODY_STATUS_TIMEOUT HEALED
+DIAG t=32.255 mono_ns=7301189861635273 DTC 0x04 M4_BODY_STATUS_TIMEOUT CONFIRMED
+DIAG t=33.059 mono_ns=7301190665755829 DTC 0x01 M1_ENGINE_SPEED_TIMEOUT CONFIRMED
+SUMMARY snapshots=1020 torn=0 race_window_us=0
+SUMMARY can_pushed=623 can_hw_dropped=0 can_drained=623 can_sw_dropped=0 can_popped=623
+SUMMARY task=Task_CAN_RX jobs=622 deadline_misses=0 os_overruns=0 max_response_us=199.4 max_exec_us=24.2
+SUMMARY task=Task_Acquisition jobs=3290 deadline_misses=0 os_overruns=0 max_response_us=218.6 max_exec_us=75.0
+SUMMARY task=Task_Processing jobs=1645 deadline_misses=0 os_overruns=0 max_response_us=84.1 max_exec_us=72.2
+SUMMARY task=Task_Display jobs=658 deadline_misses=0 os_overruns=0 max_response_us=154.6 max_exec_us=140.7
+SUMMARY task=Task_Diagnostics jobs=329 deadline_misses=0 os_overruns=0 max_response_us=159.6 max_exec_us=62.7
+SUMMARY task=Task_Logging jobs=33 deadline_misses=0 os_overruns=0 max_response_us=187.2 max_exec_us=44.8
+SUMMARY os_api_errors=0 last_error=0 last_service=0 ticks=3300

@@ -1,0 +1,12 @@
+date:     2026-10-22 23:06:49 UTC
+host:     Linux 6.8.0-101-generic x86_64
+os:       Ubuntu 24.04.4 LTS
+cpu:      AMD EPYC Processor x 8
+load:     11.94 14.13 15.55
+gcc:      gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+cmake:    cmake version 3.28.3
+python:   Python 3.12.3
+goil:     /root/icm-work/trampoline/goil/makefile-unix/goil : 3.1.16, build with GALGAS 3.7.0
+trampoline commit: 09e2dcb1206fb6ebaa73c84558f26ac21f57b2dd
+icm commit:        8871bdf5ff37733fbc1d3a9cf3b2406f8843f456
+can interface:     vcan0            UNKNOWN        <NOARP,UP,LOWER_UP> 
