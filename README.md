@@ -2,7 +2,7 @@
 
 Project #2 — Automotive Instrument Cluster Module Using Trampoline RTOS\
 Sistemas Embarcados, PPGEE UTFPR Ponta Grossa — Prof. Max Mauro Dias Santos\
-Osvaldo Janeri Filho <janeri@gmail.com>
+Osvaldo Janeri Filho · Norton Dezonet (@dezonet) · Vinicius Antunes
 
 [![CI](https://github.com/ojaneri/ee-icm-trampoline/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ojaneri/ee-icm-trampoline/actions/workflows/ci.yml)
 
@@ -15,16 +15,11 @@ An automotive instrument cluster prototype with **deterministic real-time
 control**: six OSEK tasks on [Trampoline](https://github.com/TrampolineRTOS/trampoline)
 (OSEK/VDX, API aligned with AUTOSAR OS 4.2), CAN input with interrupt and
 event, a shared data structure under the priority ceiling protocol, fault
-diagnosis, and a test suite that measures what it claims: periods, jitter,
-response times, deadline misses, detection latencies, and the absence of
-race conditions, with a negative control that shows the race when the lock is
-removed.
+diagnosis, and deployment on **real hardware targets** (**ESP32-C6-LCD-1.47** with color TFT display and Wi-Fi Web/WebSocket Dashboard, and **STM32 Nucleo L476RG** for real-time MCU validation).
 
-There is no hardware. Trampoline runs on its POSIX target inside a Linux
-process, CAN is a SocketCAN virtual interface fed by a simulator, and the
-dashboard is a text frame. Everything that this changes about the results is
-listed in [requirements §7](requirements/icm_requirements.md#7-platform-assumptions-and-limits-of-the-simulation)
-and in the report.
+There is both a Linux/POSIX simulation target (used for exhaustive CI integration testing and fault injection suites) and **real hardware deployment**:
+- **ESP32-C6-LCD-1.47**: Runs the local graphical gauge dashboard on its onboard 1.47" color TFT display (ST7789) and hosts a Wi-Fi Access Point (`ICM-Dashboard-AP`) serving a live HTML/WebSocket dashboard accessible directly from a smartphone.
+- **STM32 Nucleo L476RG**: Runs the RTOS task schedule on ARM Cortex-M4 real hardware.
 
 A frame from a real run (the fault scenario, while M3 arrives with a bad CRC;
 copied from `build/runs/nominal-faults/log.txt`):
@@ -141,21 +136,31 @@ cd tests/integration && python3 -m unittest -v
 Run the integration tests as root (or set `ICM_RT_PREFIX="sudo -E chrt -f 50"`)
 to get SCHED_FIFO; without it they still pass, with a longer latency tail.
 
-### Running the demo
+### Hardware Deployment & Real-Board Experiments
 
-Two terminals:
+The project was validated on two distinct physical targets, confirming the RTOS scheduling and the dashboard functionality outside the POSIX simulation environment:
 
-```bash
-# terminal 1: the cluster, live dashboard (q to quit)
-VIPER_PATH=third_party/trampoline/viper build/nominal/icm_exe
+| Target | Board | Firmware / Framework | Role | Key Peripherals |
+|---|---|---|---|---|
+| **ESP32-C6-LCD-1.47** | `esp32-c6-devkitc-1` | Arduino + PlatformIO (`espressif32`) | Graphical dashboard & Wi-Fi AP | ST7789 1.47" TFT (SPI), WebServer (port 80), WebSocket (port 81) |
+| **STM32 Nucleo L476RG** | `nucleo_l476rg` | CMSIS + PlatformIO (`ststm32`) | Real-time MCU validation | ARM Cortex-M4, ST-Link V2-1, UART debug |
 
-# terminal 2: the other ECUs
-python3 sim/can_sim.py --scenario faults     # or nominal, warnings; --list
-```
+#### ESP32-C6 Experiments
+- **Firmware**: `esp32_dashboard/src/main.cpp` — renders gauges locally on the TFT and hosts the HTML/WebSocket dashboard.
+- **Wi-Fi Access Point**: SSID `ICM-Dashboard-AP`, password `12345678`, IP `192.168.4.1`.
+- **RTOS Telemetry**: displays acquisition/processing/display/diagnostics job counters, deadline misses, OS overruns and torn copies in real time.
+- **Build & Flash**: `platformio run -d esp32_dashboard --target upload` (upload port: COM8).
 
-`ICM_DASH=plain` prints one frame per second instead of redrawing;
-`ICM_CAN_IF=can0` points the cluster at a real bus (a USB-CAN adapter such as
-a CANable shows up as a SocketCAN interface).
+#### STM32 Nucleo L476RG Experiments
+- **Firmware**: `nucleo_l476/src/main.c` — skeleton of the six OSEK tasks with shared `ICM_Data` protection under priority ceiling.
+- **Validation**: confirms deterministic task release and resource arbitration on ARM Cortex-M4 hardware.
+- **Build & Flash**: `platformio run -d nucleo_l476 --target upload` (via ST-Link).
+
+## Contributors
+
+- Osvaldo Janeri Filho (@ojaneri)
+- Norton Dezonet (@dezonet)
+- Vinicius Antunes
 
 ## Results
 
