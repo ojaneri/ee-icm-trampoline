@@ -17,17 +17,21 @@
 #define WIFI_PASS "12345678"
 #define NUM_SCREENS 6
 
-// ESP32-C6 Display Pins (ST7789 1.47" 172x320)
+// Waveshare ESP32-C6-LCD-1.47 pins (ST7789 172x320), per the Waveshare wiki/schematic
 #define TFT_MOSI 6
 #define TFT_SCLK 7
 #define TFT_CS 14
 #define TFT_DC 15
-#define TFT_RST 22
-#define TFT_BL 23
+#define TFT_RST 21
+#define TFT_BL 22
 #define BOOT_BTN_PIN 9
+#define LCD_W 320
+#define LCD_H 172
 
-// All peripheral objects heap-allocated in setup() to avoid static init crash on ESP32-C6
 Adafruit_ST7789 *tft = nullptr;
+// Off-screen framebuffer: frames are drawn here and pushed in one burst (no flicker)
+GFXcanvas16 *canvas = nullptr;
+Adafruit_GFX *gfx = nullptr;  // canvas if allocated, otherwise the panel itself
 WebServer *server = nullptr;
 WebSocketsServer *webSocket = nullptr;
 
@@ -365,87 +369,87 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 }
 
 void drawHeader(const char* title) {
-  if (!tft) return;
-  tft->fillRect(0, 0, 320, 28, ST77XX_BLUE);
-  tft->setTextColor(ST77XX_WHITE);
-  tft->setTextSize(2);
-  tft->setCursor(4, 6);
-  tft->printf("%s [%d/%d]", title, current_screen + 1, NUM_SCREENS);
+  if (!gfx) return;
+  gfx->fillRect(0, 0, 320, 28, ST77XX_BLUE);
+  gfx->setTextColor(ST77XX_WHITE);
+  gfx->setTextSize(2);
+  gfx->setCursor(4, 6);
+  gfx->printf("%s [%d/%d]", title, current_screen + 1, NUM_SCREENS);
 }
 
 void drawDashboard() {
-  if (!tft) return;
-  tft->fillScreen(ST77XX_BLACK);
+  if (!gfx) return;
+  gfx->fillScreen(ST77XX_BLACK);
 
   if (current_screen == 0) {
     // Screen 0: Main Gauges
     drawHeader("GAUGES");
-    tft->setTextSize(3);
-    tft->setTextColor(ST77XX_CYAN);
-    tft->setCursor(6, 36);
-    tft->printf("%.0f km/h", vehicle.speed);
-    tft->setTextColor(ST77XX_YELLOW);
-    tft->setCursor(6, 72);
-    tft->printf("%d rpm", vehicle.rpm);
-    tft->setTextSize(2);
-    tft->setTextColor(ST77XX_WHITE);
-    tft->setCursor(6, 108);
-    tft->printf("F:%.0f%% T:%.0fC", vehicle.fuel, vehicle.temp);
+    gfx->setTextSize(3);
+    gfx->setTextColor(ST77XX_CYAN);
+    gfx->setCursor(6, 36);
+    gfx->printf("%.0f km/h", vehicle.speed);
+    gfx->setTextColor(ST77XX_YELLOW);
+    gfx->setCursor(6, 72);
+    gfx->printf("%d rpm", vehicle.rpm);
+    gfx->setTextSize(2);
+    gfx->setTextColor(ST77XX_WHITE);
+    gfx->setCursor(6, 108);
+    gfx->printf("F:%.0f%% T:%.0fC", vehicle.fuel, vehicle.temp);
 
     if (vehicle.fault_active) {
-      tft->fillRect(0, 138, 320, 34, ST77XX_RED);
-      tft->setTextSize(1);
-      tft->setTextColor(ST77XX_WHITE);
-      tft->setCursor(4, 148);
-      tft->print(vehicle.message);
+      gfx->fillRect(0, 138, 320, 34, ST77XX_RED);
+      gfx->setTextSize(1);
+      gfx->setTextColor(ST77XX_WHITE);
+      gfx->setCursor(4, 148);
+      gfx->print(vehicle.message);
     } else {
-      tft->fillRect(0, 138, 320, 34, ST77XX_GREEN);
-      tft->setTextSize(1);
-      tft->setTextColor(ST77XX_BLACK);
-      tft->setCursor(4, 148);
-      tft->print("STATUS: NORMAL (0 TORN)");
+      gfx->fillRect(0, 138, 320, 34, ST77XX_GREEN);
+      gfx->setTextSize(1);
+      gfx->setTextColor(ST77XX_BLACK);
+      gfx->setCursor(4, 148);
+      gfx->print("STATUS: NORMAL (0 TORN)");
     }
   }
   else if (current_screen == 1) {
     // Screen 1: RTOS Task Frequencies & Jobs
     drawHeader("TASKS");
-    tft->setTextSize(2);
-    tft->setTextColor(ST77XX_GREEN);
-    tft->setCursor(6, 36);
-    tft->print("OSEK COUNTERS");
-    tft->setTextSize(1);
-    tft->setCursor(6, 58);
-    tft->printf("CAN_RX(p6): %lu", (unsigned long)vehicle.jobs_acquisition);
-    tft->setCursor(6, 74);
-    tft->printf("Acq 10ms(p5): %lu", (unsigned long)vehicle.jobs_acquisition);
-    tft->setCursor(6, 90);
-    tft->printf("Proc 20ms(p4): %lu", (unsigned long)vehicle.jobs_processing);
-    tft->setCursor(6, 106);
-    tft->printf("Disp 50ms(p3): %lu", (unsigned long)vehicle.jobs_display);
-    tft->setCursor(6, 122);
-    tft->printf("Diag 100ms(p2): %lu", (unsigned long)vehicle.jobs_diagnostics);
-    tft->fillRect(0, 144, 320, 28, ST77XX_BLUE);
-    tft->setTextSize(1);
-    tft->setTextColor(ST77XX_WHITE);
-    tft->setCursor(4, 152);
-    tft->printf("CPU: %.1f%% Ceiling:OK", (double)vehicle.cpu_utilization);
+    gfx->setTextSize(2);
+    gfx->setTextColor(ST77XX_GREEN);
+    gfx->setCursor(6, 36);
+    gfx->print("OSEK COUNTERS");
+    gfx->setTextSize(1);
+    gfx->setCursor(6, 58);
+    gfx->printf("CAN_RX(p6): %lu", (unsigned long)vehicle.jobs_acquisition);
+    gfx->setCursor(6, 74);
+    gfx->printf("Acq 10ms(p5): %lu", (unsigned long)vehicle.jobs_acquisition);
+    gfx->setCursor(6, 90);
+    gfx->printf("Proc 20ms(p4): %lu", (unsigned long)vehicle.jobs_processing);
+    gfx->setCursor(6, 106);
+    gfx->printf("Disp 50ms(p3): %lu", (unsigned long)vehicle.jobs_display);
+    gfx->setCursor(6, 122);
+    gfx->printf("Diag 100ms(p2): %lu", (unsigned long)vehicle.jobs_diagnostics);
+    gfx->fillRect(0, 144, 320, 28, ST77XX_BLUE);
+    gfx->setTextSize(1);
+    gfx->setTextColor(ST77XX_WHITE);
+    gfx->setCursor(4, 152);
+    gfx->printf("CPU: %.1f%% Ceiling:OK", (double)vehicle.cpu_utilization);
   }
   else if (current_screen == 2) {
     // Screen 2: Jitter Scope (Visual Bar Chart)
     drawHeader("JITTER");
-    tft->setTextSize(2);
-    tft->setTextColor(ST77XX_MAGENTA);
-    tft->setCursor(6, 36);
-    tft->print("PERIOD DEVIATION");
+    gfx->setTextSize(2);
+    gfx->setTextColor(ST77XX_MAGENTA);
+    gfx->setCursor(6, 36);
+    gfx->print("PERIOD DEVIATION");
 
     // Draw simple bar chart for Acquisition Task Jitter
     int baseY = 120;
     int maxH = 60;
     int barW = 30;
-    tft->setTextSize(1);
-    tft->setTextColor(ST77XX_WHITE);
-    tft->setCursor(6, 140);
-    tft->print("ACQ 10ms LAST 8 JOBS");
+    gfx->setTextSize(1);
+    gfx->setTextColor(ST77XX_WHITE);
+    gfx->setCursor(6, 140);
+    gfx->print("ACQ 10ms LAST 8 JOBS");
 
     for (int i = 0; i < JITTER_SAMPLES; i++) {
       long dev = (long)task_acq_periods[i] - 10000; // deviation from 10ms in us
@@ -454,119 +458,136 @@ void drawDashboard() {
       if (h < -maxH) h = -maxH;
 
       uint16_t color = (abs(dev) > 2000) ? ST77XX_RED : ST77XX_CYAN;
-      tft->fillRect(10 + i * (barW + 5), baseY - h, barW, h, color);
+      gfx->fillRect(10 + i * (barW + 5), baseY - h, barW, h, color);
     }
     // Baseline
-    tft->drawFastHLine(0, baseY, 320, ST77XX_WHITE);
+    gfx->drawFastHLine(0, baseY, 320, ST77XX_WHITE);
   }
   else if (current_screen == 3) {
     // Screen 3: ISR Latency Visualizer
     drawHeader("ISR LATENCY");
-    tft->setTextSize(2);
-    tft->setTextColor(ST77XX_WHITE);
-    tft->setCursor(6, 45);
-    tft->print("HW INTERRUPT TEST");
+    gfx->setTextSize(2);
+    gfx->setTextColor(ST77XX_WHITE);
+    gfx->setCursor(6, 45);
+    gfx->print("HW INTERRUPT TEST");
 
     if (isr_latency_us > 0) {
-      tft->setTextSize(3);
-      tft->setTextColor(ST77XX_GREEN);
-      tft->setCursor(6, 85);
-      tft->printf("%lu us", isr_latency_us);
-      tft->setTextSize(1);
-      tft->setTextColor(ST77XX_CYAN);
-      tft->setCursor(6, 125);
-      tft->print("EDGE -> ISR ENTRY TIME");
+      gfx->setTextSize(3);
+      gfx->setTextColor(ST77XX_GREEN);
+      gfx->setCursor(6, 85);
+      gfx->printf("%lu us", isr_latency_us);
+      gfx->setTextSize(1);
+      gfx->setTextColor(ST77XX_CYAN);
+      gfx->setCursor(6, 125);
+      gfx->print("EDGE -> ISR ENTRY TIME");
     } else {
-      tft->setTextSize(2);
-      tft->setTextColor(ST77XX_YELLOW);
-      tft->setCursor(6, 85);
-      tft->print("WAITING...");
-      tft->setTextSize(1);
-      tft->setTextColor(ST77XX_WHITE);
-      tft->setCursor(6, 125);
-      tft->print("PRESS BOOT BUTTON NOW");
+      gfx->setTextSize(2);
+      gfx->setTextColor(ST77XX_YELLOW);
+      gfx->setCursor(6, 85);
+      gfx->print("WAITING...");
+      gfx->setTextSize(1);
+      gfx->setTextColor(ST77XX_WHITE);
+      gfx->setCursor(6, 125);
+      gfx->print("PRESS BOOT BUTTON NOW");
     }
 
-    tft->fillRect(0, 144, 320, 28, ST77XX_BLUE);
-    tft->setCursor(4, 152);
-    tft->print("GPIO9 FALLING EDGE TRIGGER");
+    gfx->fillRect(0, 144, 320, 28, ST77XX_BLUE);
+    gfx->setCursor(4, 152);
+    gfx->print("GPIO9 FALLING EDGE TRIGGER");
   }
   else if (current_screen == 4) {
     // Screen 4: Debug & Fault Metrics
     drawHeader("DEBUG");
-    tft->setTextSize(2);
-    tft->setTextColor(ST77XX_YELLOW);
-    tft->setCursor(6, 36);
-    tft->print("FAULT METRICS");
-    tft->setTextSize(1);
-    tft->setTextColor(ST77XX_WHITE);
-    tft->setCursor(6, 60);
-    tft->printf("Misses: %lu", (unsigned long)vehicle.deadline_misses);
-    tft->setCursor(6, 78);
-    tft->printf("Overruns: %lu", (unsigned long)vehicle.os_overruns);
-    tft->setCursor(6, 96);
-    tft->printf("Torn: %lu (Locked)", (unsigned long)vehicle.torn_copies);
-    tft->setCursor(6, 114);
-    tft->print("CAN FIFO: OK");
-    tft->fillRect(0, 144, 320, 28, vehicle.fault_active ? ST77XX_RED : ST77XX_BLUE);
-    tft->setCursor(4, 152);
-    tft->print(vehicle.fault_active ? vehicle.message : "DTC: NO FAULTS");
+    gfx->setTextSize(2);
+    gfx->setTextColor(ST77XX_YELLOW);
+    gfx->setCursor(6, 36);
+    gfx->print("FAULT METRICS");
+    gfx->setTextSize(1);
+    gfx->setTextColor(ST77XX_WHITE);
+    gfx->setCursor(6, 60);
+    gfx->printf("Misses: %lu", (unsigned long)vehicle.deadline_misses);
+    gfx->setCursor(6, 78);
+    gfx->printf("Overruns: %lu", (unsigned long)vehicle.os_overruns);
+    gfx->setCursor(6, 96);
+    gfx->printf("Torn: %lu (Locked)", (unsigned long)vehicle.torn_copies);
+    gfx->setCursor(6, 114);
+    gfx->print("CAN FIFO: OK");
+    gfx->fillRect(0, 144, 320, 28, vehicle.fault_active ? ST77XX_RED : ST77XX_BLUE);
+    gfx->setCursor(4, 152);
+    gfx->print(vehicle.fault_active ? vehicle.message : "DTC: NO FAULTS");
   }
   else if (current_screen == 5) {
     // Screen 5: Network & Wi-Fi AP Status
     drawHeader("NETWORK");
-    tft->setTextSize(2);
-    tft->setTextColor(ST77XX_CYAN);
-    tft->setCursor(6, 36);
-    tft->print("WI-FI ACCESS PT");
-    tft->setTextSize(1);
-    tft->setTextColor(ST77XX_WHITE);
-    tft->setCursor(6, 62);
-    tft->print("SSID: ICM-Dashboard-AP");
-    tft->setCursor(6, 82);
-    tft->print("IP: 192.168.4.1");
-    tft->setCursor(6, 102);
-    tft->print("WS port: 81");
-    tft->fillRect(0, 144, 320, 28, ST77XX_BLUE);
-    tft->setCursor(4, 152);
-    tft->print("BOOT = ISR Test + Reset");
+    gfx->setTextSize(2);
+    gfx->setTextColor(ST77XX_CYAN);
+    gfx->setCursor(6, 36);
+    gfx->print("WI-FI ACCESS PT");
+    gfx->setTextSize(1);
+    gfx->setTextColor(ST77XX_WHITE);
+    gfx->setCursor(6, 62);
+    gfx->print("SSID: ICM-Dashboard-AP");
+    gfx->setCursor(6, 82);
+    gfx->print("IP: 192.168.4.1");
+    gfx->setCursor(6, 102);
+    gfx->print("WS port: 81");
+    gfx->fillRect(0, 144, 320, 28, ST77XX_BLUE);
+    gfx->setCursor(4, 152);
+    gfx->print("BOOT = ISR Test + Reset");
   }
+
+  if (canvas) tft->drawRGBBitmap(0, 0, canvas->getBuffer(), LCD_W, LCD_H);
+}
+
+// Re-sends the panel wake-up sequence. If an ESD/touch glitch put the ST7789
+// into its reset state (sleep + display off), this brings it back without a reboot.
+void refreshPanelState() {
+  tft->sendCommand(ST77XX_SLPOUT);
+  delay(5);
+  uint8_t colmod = 0x55;  // 16-bit RGB565
+  tft->sendCommand(ST77XX_COLMOD, &colmod, 1);
+  tft->setRotation(1);
+  tft->sendCommand(ST77XX_INVON);
+  tft->sendCommand(ST77XX_NORON);
+  tft->sendCommand(ST77XX_DISPON);
 }
 
 void setup() {
   Serial.begin(115200);
-  delay(2000);
+#if ARDUINO_USB_CDC_ON_BOOT
+  Serial.setTxTimeoutMs(0);  // never block when no USB host is reading
+#endif
+  delay(500);
   Serial.println("\n=== ICM ESP32-C6 BOOT ===");
 
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, HIGH);
-  Serial.println("[OK] Backlight ON");
-
   pinMode(BOOT_BTN_PIN, INPUT_PULLUP);
-  Serial.println("[OK] BOOT button configured");
 
-  // Heap-allocate display object to avoid static init crash on ESP32-C6
-  Serial.println("[..] Allocating ST7789 display object...");
-  tft = new Adafruit_ST7789(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST);
-  if (!tft) {
-    Serial.println("[FAIL] Could not allocate TFT object!");
-    while (true) delay(1000);
-  }
-  Serial.println("[OK] TFT object allocated");
-
-  // Software SPI init - no manual SPI.begin() to avoid conflicts
-  Serial.println("[..] Initializing ST7789 display (software SPI)...");
+  // Hardware SPI (FSPI): fast enough to push a full frame in a few ms
+  SPI.begin(TFT_SCLK, -1, TFT_MOSI, TFT_CS);
+  tft = new Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
   tft->init(172, 320);
   tft->setRotation(1);
-  tft->setSPISpeed(16000000);
-  Serial.println("[OK] Display initialized at 16MHz SPI");
-
+  tft->setSPISpeed(40000000);
   tft->fillScreen(ST77XX_BLACK);
+  Serial.println("[OK] Display initialized (HW SPI 40MHz)");
+
+  canvas = new GFXcanvas16(LCD_W, LCD_H);
+  if (canvas && canvas->getBuffer()) {
+    gfx = canvas;
+    Serial.println("[OK] Framebuffer allocated");
+  } else {
+    delete canvas;
+    canvas = nullptr;
+    gfx = tft;
+    Serial.println("[WARN] No RAM for framebuffer, drawing directly");
+  }
+
   tft->setTextColor(ST77XX_WHITE, ST77XX_BLACK);
   tft->setTextSize(2);
   tft->setCursor(40, 70);
   tft->print("ICM BOOTING...");
-  Serial.println("[OK] Boot screen drawn");
 
   Serial.println("[..] Starting Wi-Fi AP...");
   WiFi.softAP(WIFI_SSID, WIFI_PASS);
@@ -596,10 +617,17 @@ void loop() {
   if (server) server->handleClient();
   if (webSocket) webSocket->loop();
 
-  // Display watchdog: force redraw every 2s to recover from EMI/touch-induced blanking
+  // Display watchdog: re-wake the panel every 1s in case a glitch reset it
   static unsigned long last_watchdog = 0;
-  if (millis() - last_watchdog > 2000) {
+  if (millis() - last_watchdog > 1000) {
     last_watchdog = millis();
+    refreshPanelState();
+  }
+
+  // Redraw the active screen at 4 Hz
+  static unsigned long last_draw = 0;
+  if (millis() - last_draw > 250) {
+    last_draw = millis();
     drawDashboard();
   }
 
@@ -624,7 +652,7 @@ void loop() {
   if (!manual_override && (millis() - last_screen_change > 5000)) {
     last_screen_change = millis();
     current_screen = (current_screen + 1) % NUM_SCREENS;
-    Serial.printf("Auto-rotated to screen %d\n", current_screen + 1);
+    Serial.printf("Auto-rotated to screen %d (free heap %u)\n", current_screen + 1, (unsigned)ESP.getFreeHeap());
     drawDashboard();
   }
 
@@ -684,8 +712,6 @@ void loop() {
       strcpy(vehicle.message, "VEHICLE STOPPED");
     }
 
-    // Only redraw LCD if it's the active display update tick to avoid flicker
-    if (vehicle.jobs_display % 2 == 0) drawDashboard();
 
     // Broadcast metrics to WebSockets
     String json = "{";

@@ -26,7 +26,13 @@ O sistema foi validado em dois alvos físicos distintos:
 
 ### ESP32-C6: Dashboard Gráfico e Wi-Fi
 
-> ⚠️ **Known Issue (2026-10-27):** The ESP32-C6 firmware currently experiences a silent boot crash on some boards when using the Arduino framework with USB-JTAG CDC. The firmware compiles and uploads successfully, but execution halts before `setup()` on certain hardware revisions. This is under investigation — the STM32 Nucleo target and the GitHub Pages simulation remain fully functional for demonstration and grading purposes.
+Pinagem do display (Waveshare ESP32-C6-LCD-1.47, ST7789 172×320, SPI por hardware a 40 MHz):
+
+| Sinal | MOSI | SCLK | CS | DC | RST | BL |
+|---|---|---|---|---|---|---|
+| GPIO | 6 | 7 | 14 | 15 | 21 | 22 |
+
+Cada quadro é desenhado em um framebuffer em RAM e enviado de uma vez (sem cintilação). A cada 1 s o firmware reenvia a sequência de wake-up do painel, para recuperar o display caso uma descarga eletrostática (ex.: toque na placa) o reinicie. O log serial sai pela USB nativa (`ARDUINO_USB_CDC_ON_BOOT=1`).
 
 O firmware da ESP32-C6 implementa um dashboard completo que roda localmente no display TFT de 1.47" e simultaneamente hospeda uma interface web via Wi-Fi Access Point.
 
