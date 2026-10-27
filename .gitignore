@@ -2,7 +2,15 @@
 build/
 # Trampoline checkout made by tools/setup_trampoline.sh
 third_party/
+# PlatformIO
+.pio/
+*.pio/
 # Python
 __pycache__/
 *.pyc
 .venv/
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

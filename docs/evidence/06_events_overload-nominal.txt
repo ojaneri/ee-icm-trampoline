@@ -1,0 +1,13 @@
+ICM READY mono_ns=7301190882291897 can=online race_window_us=0
+DIAG t=5.173 mono_ns=7301196055298396 DTC 0x31 TASK_DEADLINE_OVERRUN CONFIRMED
+DIAG t=15.067 mono_ns=7301205948679102 DTC 0x31 TASK_DEADLINE_OVERRUN HEALED
+DIAG t=17.276 mono_ns=7301208157774731 DTC 0x04 M4_BODY_STATUS_TIMEOUT CONFIRMED
+SUMMARY snapshots=530 torn=0 race_window_us=0
+SUMMARY can_pushed=238 can_hw_dropped=0 can_drained=238 can_sw_dropped=0 can_popped=238
+SUMMARY task=Task_CAN_RX jobs=238 deadline_misses=0 os_overruns=0 max_response_us=83.0 max_exec_us=18.4
+SUMMARY task=Task_Acquisition jobs=1790 deadline_misses=0 os_overruns=0 max_response_us=72.4 max_exec_us=40.6
+SUMMARY task=Task_Processing jobs=895 deadline_misses=0 os_overruns=0 max_response_us=79.4 max_exec_us=38.6
+SUMMARY task=Task_Display jobs=358 deadline_misses=0 os_overruns=0 max_response_us=182.6 max_exec_us=164.8
+SUMMARY task=Task_Diagnostics jobs=154 deadline_misses=25 os_overruns=25 max_response_us=150121.1 max_exec_us=149788.4
+SUMMARY task=Task_Logging jobs=18 deadline_misses=0 os_overruns=0 max_response_us=49773.9 max_exec_us=41.0
+SUMMARY os_api_errors=0 last_error=0 last_service=0 ticks=1800

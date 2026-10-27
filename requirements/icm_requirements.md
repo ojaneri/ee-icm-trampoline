@@ -1,6 +1,6 @@
 # ICM requirements and signal dictionary
 
-Osvaldo Janeri Filho <janeri@gmail.com>\
+Osvaldo Janeri Filho · Norton Dezonet (@dezonet) · Vinicius Antunes\
 Project #2 — Automotive Instrument Cluster Module Using Trampoline RTOS\
 Sistemas Embarcados, PPGEE UTFPR Ponta Grossa — Prof. Max Mauro Dias Santos
 
