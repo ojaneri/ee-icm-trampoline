@@ -52,11 +52,18 @@ struct {
   float cpu_utilization = 2.87f;
 } vehicle;
 
-// RTOS Timing & ISR Telemetry
-volatile unsigned long isr_timestamp = 0;
-volatile unsigned long isr_latency_us = 0;
-volatile bool isr_triggered = false;
-unsigned long last_isr_display_time = 0;
+// BOOT button interrupt telemetry. The ISR only timestamps the edge (like an
+// OSEK category-2 ISR doing SetEvent); loop() plays the task that handles it.
+#define BTN_LOCKOUT_US 250000  // ignore contact bounce for 250 ms after an edge
+volatile uint32_t isr_cycles = 0;      // CPU cycle counter at ISR entry
+volatile uint32_t isr_last_edge_us = 0;
+volatile bool isr_pending = false;
+uint32_t isr_presses = 0;
+uint32_t isr_latency_us = 0;           // last ISR -> task latency
+uint32_t isr_latency_min = UINT32_MAX;
+uint32_t isr_latency_max = 0;
+float selftest_edge_to_isr_us = -1;    // GPIO write -> ISR entry, measured at boot
+unsigned long isr_screen_until = 0;    // keep the ISR screen up after a press
 
 // Jitter Scope Buffers (last 8 samples for bar chart)
 #define JITTER_SAMPLES 8
@@ -75,18 +82,40 @@ int current_screen = 0;
 unsigned long last_update = 0;
 unsigned long last_screen_change = 0;
 int drive_step = 0;
-bool last_btn_state = HIGH;
-unsigned long last_debounce = 0;
-bool manual_override = false;
 
-// --- ISR Handler for BOOT Button (Real-Time Interrupt Demonstration) ---
 void IRAM_ATTR onBootButtonPress() {
-  unsigned long now = micros();
-  // Simple debounce in ISR context (ignore if too close to last)
-  if ((now - isr_timestamp) > 5000) {
-    isr_timestamp = now;
-    isr_triggered = true;
-  }
+  uint32_t cyc = esp_cpu_get_cycle_count();
+  uint32_t now = micros();
+  if (now - isr_last_edge_us < BTN_LOCKOUT_US) return;
+  isr_last_edge_us = now;
+  isr_cycles = cyc;
+  isr_pending = true;
+}
+
+static inline float cyclesToUs(uint32_t cycles) {
+  return cycles / (float)ESP.getCpuFreqMHz();
+}
+
+// Pulls GPIO9 low in open-drain mode (safe even if BOOT is held) to produce a
+// real falling edge, and measures how long the CPU takes to enter the ISR.
+void bootIrqSelfTest() {
+  pinMode(BOOT_BTN_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BOOT_BTN_PIN), onBootButtonPress, FALLING);
+  gpio_set_level((gpio_num_t)BOOT_BTN_PIN, 1);
+  gpio_set_direction((gpio_num_t)BOOT_BTN_PIN, GPIO_MODE_INPUT_OUTPUT_OD);  // keeps the input path on
+  delay(2);
+  isr_pending = false;
+  isr_last_edge_us = micros() - BTN_LOCKOUT_US;
+  uint32_t t0 = esp_cpu_get_cycle_count();
+  gpio_set_level((gpio_num_t)BOOT_BTN_PIN, 0);
+  uint32_t wait_start = micros();
+  while (!isr_pending && micros() - wait_start < 1000) {}
+  if (isr_pending) selftest_edge_to_isr_us = cyclesToUs(isr_cycles - t0);
+  gpio_set_level((gpio_num_t)BOOT_BTN_PIN, 1);
+  gpio_set_direction((gpio_num_t)BOOT_BTN_PIN, GPIO_MODE_INPUT);
+  delay(5);
+  isr_pending = false;
+  isr_last_edge_us = micros() - BTN_LOCKOUT_US;  // the real button is usable right away
 }
 
 const char index_html[] PROGMEM = R"rawliteral(
@@ -185,9 +214,9 @@ canvas { max-width: 100%; height: auto; }
   <div class="card">
     <div class="label">Hardware Interrupt Telemetry</div>
     <div style="font-size:32px; font-weight:bold; color:#8957e5; margin:20px 0;"><span id="isr-lat">--</span> <span style="font-size:14px;">µs</span></div>
-    <div style="font-size:13px; color:#c9d1d9;">Last ISR Response Latency</div>
+    <div style="font-size:13px; color:#c9d1d9;">Last ISR &rarr; task latency</div>
     <div class="isr-badge">Trigger: BOOT Button (GPIO9)</div>
-    <p style="font-size:11px; color:#8b949e; margin-top:15px;">Measures time from hardware edge to ISR entry. Proves deterministic real-time interrupt handling.</p>
+    <p style="font-size:11px; color:#8b949e; margin-top:15px;">The ISR only timestamps the falling edge; the main loop (the task) handles it and measures the delay, like an OSEK ISR doing SetEvent.</p>
   </div>
 </div>
 
@@ -212,8 +241,8 @@ canvas { max-width: 100%; height: auto; }
     <b>Password:</b> 12345678<br>
     <b>IP Address:</b> http://192.168.4.1<br>
     <b>Protocol:</b> HTTP + WebSocket<br>
-    <b>Screens:</b> 6 (Auto-rotate 5s)<br>
-    <b>Control:</b> Press BOOT on ESP32 to trigger ISR test & reset to Tab 0
+    <b>Screens:</b> 6 on the LCD (auto-rotate 5 s); here, pick a tab<br>
+    <b>Control:</b> Press BOOT on the ESP32 to run the ISR test (opens the ISR tab for 10 s)
   </div>
 </div>
 
@@ -341,10 +370,6 @@ function connectWS() {
       st.className = 'nominal';
       st.innerText = d.msg;
     }
-
-    if (typeof d.screen !== 'undefined' && d.screen !== currentHtmlTab) {
-      openTab(null, d.screen);
-    }
   };
   ws.onclose = function() { setTimeout(connectWS, 3000); };
 }
@@ -468,30 +493,40 @@ void drawDashboard() {
     drawHeader("ISR LATENCY");
     gfx->setTextSize(2);
     gfx->setTextColor(ST77XX_WHITE);
-    gfx->setCursor(6, 45);
-    gfx->print("HW INTERRUPT TEST");
+    gfx->setCursor(6, 36);
+    gfx->print("BOOT IRQ (GPIO9)");
 
-    if (isr_latency_us > 0) {
+    if (isr_presses > 0) {
       gfx->setTextSize(3);
       gfx->setTextColor(ST77XX_GREEN);
-      gfx->setCursor(6, 85);
-      gfx->printf("%lu us", isr_latency_us);
+      gfx->setCursor(6, 60);
+      gfx->printf("%lu us", (unsigned long)isr_latency_us);
       gfx->setTextSize(1);
       gfx->setTextColor(ST77XX_CYAN);
-      gfx->setCursor(6, 125);
-      gfx->print("EDGE -> ISR ENTRY TIME");
+      gfx->setCursor(6, 88);
+      gfx->printf("ISR->TASK min/max: %lu/%lu us",
+                  (unsigned long)isr_latency_min, (unsigned long)isr_latency_max);
+      gfx->setTextColor(ST77XX_WHITE);
+      gfx->setCursor(6, 104);
+      gfx->printf("PRESSES: %lu", (unsigned long)isr_presses);
     } else {
       gfx->setTextSize(2);
       gfx->setTextColor(ST77XX_YELLOW);
-      gfx->setCursor(6, 85);
-      gfx->print("WAITING...");
+      gfx->setCursor(6, 62);
+      gfx->print("PRESS BOOT");
       gfx->setTextSize(1);
       gfx->setTextColor(ST77XX_WHITE);
-      gfx->setCursor(6, 125);
-      gfx->print("PRESS BOOT BUTTON NOW");
+      gfx->setCursor(6, 88);
+      gfx->print("Measures ISR -> task latency");
     }
+    gfx->setTextSize(1);
+    gfx->setTextColor(ST77XX_WHITE);
+    gfx->setCursor(6, 122);
+    if (selftest_edge_to_isr_us >= 0) gfx->printf("SELF-TEST EDGE->ISR: %.1f us", selftest_edge_to_isr_us);
+    else gfx->print("SELF-TEST EDGE->ISR: n/a");
 
     gfx->fillRect(0, 144, 320, 28, ST77XX_BLUE);
+    gfx->setTextColor(ST77XX_WHITE);
     gfx->setCursor(4, 152);
     gfx->print("GPIO9 FALLING EDGE TRIGGER");
   }
@@ -533,7 +568,7 @@ void drawDashboard() {
     gfx->print("WS port: 81");
     gfx->fillRect(0, 144, 320, 28, ST77XX_BLUE);
     gfx->setCursor(4, 152);
-    gfx->print("BOOT = ISR Test + Reset");
+    gfx->print("BOOT = ISR latency test");
   }
 
   if (canvas) tft->drawRGBBitmap(0, 0, canvas->getBuffer(), LCD_W, LCD_H);
@@ -562,7 +597,9 @@ void setup() {
 
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, HIGH);
-  pinMode(BOOT_BTN_PIN, INPUT_PULLUP);
+
+  bootIrqSelfTest();
+  Serial.printf("[OK] BOOT IRQ armed, self-test edge->ISR: %.2f us\n", selftest_edge_to_isr_us);
 
   // Hardware SPI (FSPI): fast enough to push a full frame in a few ms
   SPI.begin(TFT_SCLK, -1, TFT_MOSI, TFT_CS);
@@ -631,35 +668,30 @@ void loop() {
     drawDashboard();
   }
 
-  // Check BOOT button press with strong debounce (500ms) to reject touch/EMI noise
-  bool btn_state = digitalRead(BOOT_BTN_PIN);
-  static unsigned long btn_stable_since = 0;
-  static bool btn_last_raw = HIGH;
-  if (btn_state != btn_last_raw) {
-    btn_stable_since = millis();
-    btn_last_raw = btn_state;
-  }
-  if (btn_state == LOW && (millis() - btn_stable_since > 500) && (millis() - last_debounce > 1000)) {
-    last_debounce = millis();
-    current_screen = 0;
-    manual_override = true;
-    last_screen_change = millis();
-    Serial.println("Boot button pressed! Returned to Screen 1 (Gauges)");
+  // "Task" side of the BOOT interrupt: measure ISR -> task latency, show the ISR screen
+  if (isr_pending) {
+    uint32_t lat = (uint32_t)(cyclesToUs(esp_cpu_get_cycle_count() - isr_cycles) + 0.5f);
+    isr_pending = false;
+    isr_presses++;
+    isr_latency_us = lat;
+    if (lat < isr_latency_min) isr_latency_min = lat;
+    if (lat > isr_latency_max) isr_latency_max = lat;
+    current_screen = 3;
+    isr_screen_until = millis() + 10000;
+    Serial.printf("BOOT IRQ #%lu: ISR->task %lu us (min %lu, max %lu)\n", (unsigned long)isr_presses,
+                  (unsigned long)lat, (unsigned long)isr_latency_min, (unsigned long)isr_latency_max);
     drawDashboard();
   }
 
-  // Auto-rotate screen every 5 seconds
-  if (!manual_override && (millis() - last_screen_change > 5000)) {
+  // Auto-rotate every 5 s, except while the ISR result is being shown
+  bool hold_isr = (long)(isr_screen_until - millis()) > 0;
+  if (!hold_isr && (millis() - last_screen_change > 5000)) {
     last_screen_change = millis();
     current_screen = (current_screen + 1) % NUM_SCREENS;
-    Serial.printf("Auto-rotated to screen %d (free heap %u)\n", current_screen + 1, (unsigned)ESP.getFreeHeap());
+    Serial.printf("Auto-rotated to screen %d (free heap %u, IRQ self-test %.2f us, BOOT presses %lu)\n",
+                  current_screen + 1, (unsigned)ESP.getFreeHeap(), selftest_edge_to_isr_us,
+                  (unsigned long)isr_presses);
     drawDashboard();
-  }
-
-  // Clear manual override after 15 seconds so auto-rotate resumes
-  if (manual_override && (millis() - last_debounce > 15000) && (millis() - last_isr_display_time > 15000)) {
-    manual_override = false;
-    last_screen_change = millis();
   }
 
   // Simulate drive cycle and RTOS tasks every 50ms

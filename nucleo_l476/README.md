@@ -1,7 +1,9 @@
-# ICM STM32 Nucleo L476RG Port
+# STM32 Nucleo L476RG: port futuro (issue #3)
 
-This folder contains the embedded port structure for the **STM32 Nucleo L476RG** (Issue #3), running alongside the ESP32-C6 dashboard display.
+Esta pasta é só um ponto de partida para o port do cluster para a STM32 Nucleo L476RG.
+O `src/main.c` atual é um esqueleto: um super-loop que chama stubs das tarefas, sem
+Trampoline, sem configuração de clock e sem UART. Nada deste diretório foi usado nas
+medições do projeto, que rodam no alvo POSIX (ver `docs/relatorio_tecnico.md`).
 
-## Files
-- `platformio.ini`: PlatformIO config for the STM32L476RG board.
-- `src/main.c`: Real-time task scheduler skeleton mimicking the 6 OSEK tasks and shared `ICM_Data` protection under resource ceiling.
+Para o port, a seção 12 do relatório lista o que falta: startup, linker script, relógio,
+SysTick como `SystemCounter` (1 ms) e CAN via bxCAN ou MCP2515 + TJA1050.

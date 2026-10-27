@@ -67,15 +67,15 @@
 
     <div class="info-card">
         <h2>📱 Simulação do Display LCD (ESP32-C6)</h2>
-        <p>Réplica do display ST7789 de 1.47" (320×172, na horizontal), com as mesmas coordenadas, cores e ciclo de condução do firmware. As 6 telas trocam a cada 5 s. Clique nos botões para navegar.</p>
+        <p>Réplica do display ST7789 de 1.47" (320×172, na horizontal), com as mesmas coordenadas, cores e ciclo de condução do firmware. Clique no nome de uma aba para trocar de tela. Na placa, as telas trocam sozinhas a cada 5 s.</p>
 
         <div class="slides-nav" id="nav">
-            <button class="slide-btn active" onclick="setScreen(0, true)">1. Gauges</button>
-            <button class="slide-btn" onclick="setScreen(1, true)">2. Tasks</button>
-            <button class="slide-btn" onclick="setScreen(2, true)">3. Jitter</button>
-            <button class="slide-btn" onclick="setScreen(3, true)">4. ISR</button>
-            <button class="slide-btn" onclick="setScreen(4, true)">5. Debug</button>
-            <button class="slide-btn" onclick="setScreen(5, true)">6. Network</button>
+            <button class="slide-btn active" onclick="setScreen(0)">1. Gauges</button>
+            <button class="slide-btn" onclick="setScreen(1)">2. Tasks</button>
+            <button class="slide-btn" onclick="setScreen(2)">3. Jitter</button>
+            <button class="slide-btn" onclick="setScreen(3)">4. ISR</button>
+            <button class="slide-btn" onclick="setScreen(4)">5. Debug</button>
+            <button class="slide-btn" onclick="setScreen(5)">6. Network</button>
         </div>
 
         <div class="board">
@@ -134,7 +134,7 @@ platformio run -d esp32_dashboard --target upload</code></pre>
                 CYAN: '#0ff', YELLOW: '#ff0', MAGENTA: '#f0f' };
     const NUM_SCREENS = 6;
     const svg = document.getElementById('lcd');
-    let currentScreen = 0, lastChange = Date.now();
+    let currentScreen = 0;
 
     const v = { speed: 0, rpm: 800, fuel: 65, temp: 82, fault: false, msg: 'SYSTEM NOMINAL',
                 acq: 0, proc: 0, disp: 0, diag: 0, step: 0 };
@@ -187,9 +187,10 @@ platformio run -d esp32_dashboard --target upload</code></pre>
                 + text(6, 140, 1, C.WHITE, 'ACQ 10ms LAST 8 JOBS') + bars + rect(0, 120, 320, 1, C.WHITE);
         },
         () => header('ISR LATENCY')
-            + text(6, 45, 2, C.WHITE, 'HW INTERRUPT TEST')
-            + text(6, 85, 2, C.YELLOW, 'WAITING...')
-            + text(6, 125, 1, C.WHITE, 'PRESS BOOT BUTTON NOW')
+            + text(6, 36, 2, C.WHITE, 'BOOT IRQ (GPIO9)')
+            + text(6, 62, 2, C.YELLOW, 'PRESS BOOT')
+            + text(6, 88, 1, C.WHITE, 'Measures ISR -> task latency')
+            + text(6, 122, 1, C.WHITE, 'SELF-TEST EDGE->ISR: 5.7 us')
             + rect(0, 144, 320, 28, C.BLUE) + text(4, 152, 1, C.WHITE, 'GPIO9 FALLING EDGE TRIGGER'),
         () => header('DEBUG')
             + text(6, 36, 2, C.YELLOW, 'FAULT METRICS')
@@ -204,23 +205,20 @@ platformio run -d esp32_dashboard --target upload</code></pre>
             + text(6, 62, 1, C.WHITE, 'SSID: ICM-Dashboard-AP')
             + text(6, 82, 1, C.WHITE, 'IP: 192.168.4.1')
             + text(6, 102, 1, C.WHITE, 'WS port: 81')
-            + rect(0, 144, 320, 28, C.BLUE) + text(4, 152, 1, C.WHITE, 'BOOT = ISR Test + Reset'),
+            + rect(0, 144, 320, 28, C.BLUE) + text(4, 152, 1, C.WHITE, 'BOOT = ISR latency test'),
     ];
 
     function draw() { svg.innerHTML = rect(0, 0, 320, 172, C.BLACK) + screens[currentScreen](); }
 
-    function setScreen(idx, manual) {
+    // The screen changes only when a tab is clicked; values keep updating live.
+    function setScreen(idx) {
         currentScreen = idx;
-        if (manual) lastChange = Date.now();
         document.querySelectorAll('.slide-btn').forEach((btn, i) => btn.classList.toggle('active', i === idx));
         draw();
     }
 
     setInterval(stepDriveCycle, 50);
-    setInterval(() => {
-        if (Date.now() - lastChange >= 5000) { lastChange = Date.now(); setScreen((currentScreen + 1) % NUM_SCREENS); }
-        else draw();
-    }, 250);
+    setInterval(draw, 250);
     setScreen(0);
 </script>
 </body>

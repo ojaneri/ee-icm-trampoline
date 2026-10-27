@@ -20,14 +20,13 @@ Simulação do display LCD, guia de conexão Wi-Fi e documentação técnica do 
 
 ---
 
-## Hardware Validado
+## Onde cada parte roda
 
-O sistema foi validado em dois alvos físicos distintos:
-
-| Alvo | Placa | Firmware / Framework | Função | Periféricos Chave |
-|---|---|---|---|---|
-| **ESP32-C6-LCD-1.47** | `esp32-c6-devkitc-1` | Arduino + PlatformIO (`espressif32`) | Dashboard gráfico & Wi-Fi AP | ST7789 1.47" TFT (SPI), WebServer (80), WebSocket (81) |
-| **STM32 Nucleo L476RG** | `nucleo_l476rg` | CMSIS + PlatformIO (`ststm32`) | Validação RTOS em MCU real | ARM Cortex-M4, ST-Link V2-1, UART debug |
+| Parte | Alvo | O que faz |
+|---|---|---|
+| **Cluster sobre Trampoline RTOS** (`src/`) | Alvo POSIX do Trampoline (Linux), CAN em `vcan0` | As 6 tarefas OSEK, ISR, eventos, alarmes e recursos. **Todas as medições de tempo real deste README vêm daqui** (ver `docs/relatorio_tecnico.md`) |
+| **Painel físico** (`esp32_dashboard/`) | Waveshare ESP32-C6-LCD-1.47 (Arduino + PlatformIO) | Display ST7789 de 1.47" e interface web por Wi-Fi. Mostra um ciclo de condução simulado no próprio firmware; ainda não é alimentado pelo Trampoline |
+| **Port para MCU** (`nucleo_l476/`) | STM32 Nucleo L476RG | Apenas um esqueleto (super-loop com stubs). O port do Trampoline é trabalho futuro (issue #3) |
 
 ### ESP32-C6: Dashboard Gráfico e Wi-Fi
 
@@ -41,19 +40,18 @@ Cada quadro é desenhado em um framebuffer em RAM e enviado de uma vez (sem cint
 
 O firmware da ESP32-C6 implementa um dashboard completo que roda localmente no display TFT de 1.47" e simultaneamente hospeda uma interface web via Wi-Fi Access Point.
 
-#### Telas do Display LCD (Auto-rotação a cada 5s)
-1. **Gauges Principais**: Velocímetro (km/h), Tacômetro (rpm), Combustível (%) e Temperatura (°C) em fonte grande. Barra de status verde (normal) ou vermelha (falha).
-2. **Tarefas RTOS**: Contadores de execução das 6 tarefas OSEK (CAN_RX, Acq, Proc, Disp, Diag) e utilização de CPU.
-3. **Jitter Scope**: Gráfico de barras mostrando o desvio de período (jitter) da tarefa de aquisição em tempo real. Demonstra a determinística do escalonador.
-4. **ISR Latency**: Mede e exibe a latência de resposta a interrupções de hardware (botão BOOT). Prova o tempo real da ISR.
-5. **Debug & Falhas**: Métricas de confiabilidade (Deadline Misses, OS Overruns, Torn Copies) e estado dos DTCs.
-6. **Rede**: Status do Wi-Fi AP (SSID, IP, Porta WebSocket).
+#### Telas do display LCD (auto-rotação a cada 5 s)
+1. **Gauges**: velocidade, rotação, combustível e temperatura. Barra de status verde (normal) ou vermelha com a mensagem de falha.
+2. **Tasks**: contadores de ativação das tarefas e utilização de CPU.
+3. **Jitter**: desvio do período nos últimos 8 jobs de aquisição (barra vermelha acima de 2 ms).
+4. **ISR Latency**: interrupção real no botão BOOT (GPIO9, borda de descida). A ISR só registra o instante; o loop principal trata o evento e mede a latência ISR → tarefa. No boot, um autoteste gera uma borda no próprio GPIO9 e mede borda → ISR (≈ 5,7 µs).
+5. **Debug**: deadlines perdidos, overruns, cópias rasgadas e estado da FIFO CAN.
+6. **Network**: SSID, IP e porta WebSocket.
 
-#### Interface Web (Smartphone/PC)
-Conecte-se ao Wi-Fi da placa e acesse a mesma interface visual do LCD, mas com gráficos Canvas interativos e abas navegáveis. Os dados são atualizados em tempo real via WebSocket.
+Ao apertar o BOOT, o LCD vai para a tela 4 e mostra a medição por 10 s.
 
-### STM32 Nucleo L476RG: Validação RTOS
-Executa o esqueleto das seis tarefas OSEK com proteção de recurso compartilhado (`ICM_Data`) sob protocolo de teto de prioridade, confirmando a arbitragem determinística e a ausência de race conditions em hardware ARM Cortex-M4 real.
+#### Interface web (celular/PC)
+Conecte-se ao Wi-Fi da placa e acesse a mesma informação em abas, com gráficos em Canvas atualizados via WebSocket. A aba só muda quando você clica nela.
 
 ---
 
@@ -74,15 +72,10 @@ Executa o esqueleto das seis tarefas OSEK com proteção de recurso compartilhad
    - **SSID:** `ICM-Dashboard-AP`
    - **Senha:** `12345678`
 5. Acesse no navegador: **http://192.168.4.1**
-6. Pressione o botão **BOOT** na placa para testar a latência da ISR e retornar à tela inicial.
+6. Pressione o botão **BOOT** na placa: o LCD mostra a latência ISR → tarefa, e o log serial registra `BOOT IRQ #n`.
 
-### STM32 Nucleo L476RG
-1. Conecte o ST-Link à placa e ao PC.
-2. Compile e grave:
-   ```bash
-   platformio run -d nucleo_l476 --target upload
-   ```
-3. Use um terminal serial para verificar a saída de debug das tarefas RTOS.
+### Cluster sobre Trampoline (alvo POSIX)
+Os passos completos (setup do Trampoline, `vcan0`, builds e coleta de evidências) estão na seção 13 de [`docs/relatorio_tecnico.md`](docs/relatorio_tecnico.md).
 
 ---
 
@@ -92,9 +85,10 @@ Executa o esqueleto das seis tarefas OSEK com proteção de recurso compartilhad
 esp32_dashboard/      Firmware ESP32-C6 (Arduino/PlatformIO)
   src/main.cpp        Lógica completa: Display, Wi-Fi, WebSocket, Simulação RTOS
   platformio.ini      Configuração da placa e dependências
-nucleo_l476/          Firmware STM32 Nucleo (CMSIS/PlatformIO)
-  src/main.c          Esqueleto das tarefas OSEK e proteção de recurso
-src/                  Código-fonte original Trampoline (Simulação POSIX/CI)
+nucleo_l476/          Esqueleto para o futuro port na STM32 Nucleo L476RG
+src/                  Aplicação Trampoline (OIL + C), alvo POSIX
+sim/                  Simulador das ECUs no barramento CAN
+tools/                Build, coleta de evidências e verificações do CI
 docs/                 Relatório técnico e evidências de testes
 requirements/         Requisitos, arquitetura e dicionário de sinais
 tests/                Testes unitários e de integração (CI)
@@ -104,17 +98,18 @@ tests/                Testes unitários e de integração (CI)
 
 ## Resultados de Tempo Real
 
-Medições obtidas em hardware real e simulação CI:
+Medições do cluster sobre Trampoline no alvo POSIX (evidências em `docs/evidence/`):
 
 | Métrica | Resultado |
 |---|---|
-| Releases periódicos no tick exato | 100% das ativações |
-| Deadline misses (nominal e falha) | 0 |
-| Latência ISR (GPIO → Handler) | < 10 µs (medido no scope) |
-| Jitter de período (Task_Acq 10ms) | ± 50 µs típico |
-| Utilização CPU (pior caso medido) | 2.9% (Limite Liu & Layland: 73.5%) |
-| Cópias inconsistentes (com recurso) | 0 de 617 |
-| Detecção de perda de mensagem CAN | ≤ 3 períodos (timeout configurado) |
+| Jobs iniciados no tick de liberação | 100 % |
+| Deadlines perdidos (nominal e sob falhas de CAN) | 0 |
+| Utilização de CPU | 2,9 % (limite de Liu & Layland para 6 tarefas: 73,5 %) |
+| Cópias inconsistentes de `ICM_Data` | 0 de 617 com o recurso; 199 de 617 sem ele (controle negativo) |
+| Latência de IRQ CAN, p99 | 0,139 ms (`SCHED_FIFO`) |
+| Detecção da perda da M2 (período 1 s) | 3,102 s (esperado: > 3 s e ≤ 3,3 s) |
+
+Na ESP32-C6, o autoteste da interrupção do GPIO9 mede ≈ 5,7 µs da escrita no pino até a entrada na ISR.
 
 ---
 
