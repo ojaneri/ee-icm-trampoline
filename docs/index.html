@@ -140,16 +140,50 @@ platformio run -d esp32_dashboard --target upload</code></pre>
                 acq: 0, proc: 0, disp: 0, diag: 0, step: 0 };
     const jitter = Array(8).fill(10000);
 
-    function stepDriveCycle() {  // same profile as loop() in the firmware, every 50 ms
-        v.step = (v.step + 1) % 600;
+    // Same vehicle model as updateVehicle() in the firmware: a 120 s cycle of target speeds,
+    // followed with limited acceleration/braking; rpm follows a 5-speed gearbox.
+    function targetSpeed(t) {
+        if (t < 5)   return 0;
+        if (t < 25)  return 110;
+        if (t < 60)  return 110 + 3 * Math.sin(t * 0.35) + 1.5 * Math.sin(t * 1.3);
+        if (t < 70)  return 60;
+        if (t < 90)  return 47 + 12 * Math.sin((t - 70) * 0.45);
+        if (t < 105) return 0;
+        if (t < 115) return 50;
+        return 0;
+    }
+    const UPSHIFT = [15, 30, 50, 75], RPM_PER_KMH = [120, 70, 48, 36, 28];
+    const noise = (a) => (Math.random() * 2 - 1) * a;
+
+    function stepDriveCycle() {  // every 50 ms, like the firmware loop
+        v.step = (v.step + 1) % 2400;
+        const t = v.step * 0.05;
         v.acq++; v.proc++; v.disp++; v.diag++;
-        jitter[v.acq % 8] = 10000 + Math.round((Math.random() - 0.5) * 6000);
-        v.fuel = Math.max(10, 65 - v.step * 0.05);
-        v.temp = Math.min(110, 82 + v.speed * 0.15);
-        if (v.step < 100)      { v.speed = v.step * 1.2; v.rpm = 800 + v.step * 20; v.fault = false; v.msg = 'SYSTEM NOMINAL'; }
-        else if (v.step < 300) { v.speed = 120; v.rpm = 3120; v.fault = false; v.msg = 'CRUISE 120 KM/H'; }
-        else if (v.step < 450) { v.speed = 40;  v.rpm = 1500; v.fault = true;  v.msg = 'COMM LOST: M2 TIMEOUT'; }
-        else                   { v.speed = 0;   v.rpm = 800;  v.fault = false; v.msg = 'VEHICLE STOPPED'; }
+        jitter[v.acq % 8] = 10000 + Math.round(noise(3000));
+
+        const target = targetSpeed(t);
+        let dv = target - v.speed;
+        const accelerating = dv > 0.5;
+        dv = Math.max(-6 * 0.05, Math.min(3.5 * 0.05, dv));
+        v.speed += dv + (v.speed > 1 ? noise(0.05) : 0);
+        if (v.speed < 0.2 && target === 0) v.speed = 0;
+
+        let gear = 0;
+        while (gear < 4 && v.speed > UPSHIFT[gear]) gear++;
+        let rpmTarget = v.speed < 2 ? 800 : v.speed * RPM_PER_KMH[gear] + (accelerating ? 350 : 0);
+        rpmTarget = Math.max(800, rpmTarget) + noise(15);
+        v.rpm = Math.trunc(v.rpm + (rpmTarget - v.rpm) * 0.25);
+
+        v.temp += (86 + (v.rpm - 2000) / 600 - v.temp) * 0.004;
+        v.fuel -= v.rpm * 1.5e-6;
+        if (v.fuel < 10) v.fuel = 65;
+
+        v.fault = t >= 76 && t < 84;
+        v.msg = v.fault ? 'COMM LOST: M2 TIMEOUT'
+              : v.speed < 1 && target === 0 ? 'VEHICLE STOPPED'
+              : target - v.speed > 3 ? 'ACCELERATING'
+              : v.speed - target > 3 ? 'BRAKING'
+              : v.speed > 90 ? 'CRUISE' : 'CITY TRAFFIC';
     }
 
     // Adafruit GFX built-in font: 6x8 px per char at size 1

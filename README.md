@@ -109,7 +109,7 @@ Medições do cluster sobre Trampoline no alvo POSIX (evidências em `docs/evide
 | Latência de IRQ CAN, p99 | 0,139 ms (`SCHED_FIFO`) |
 | Detecção da perda da M2 (período 1 s) | 3,102 s (esperado: > 3 s e ≤ 3,3 s) |
 
-Na ESP32-C6, o autoteste da interrupção do GPIO9 mede ≈ 5,7 µs da escrita no pino até a entrada na ISR.
+Na ESP32-C6, o autoteste da interrupção do GPIO9 mede ≈ 5,7 µs da escrita no pino até a entrada na ISR. Com o botão BOOT, a latência ISR → tarefa ficou em 108–191 µs em 4 de 5 toques e chegou a 25,9 ms em um. No super-loop do Arduino o tratamento espera o loop terminar o que está fazendo (desenhar um quadro, atender o Wi-Fi), porque não há preempção. É o problema que o escalonamento preemptivo por prioridade do RTOS resolve.
 
 ---
 

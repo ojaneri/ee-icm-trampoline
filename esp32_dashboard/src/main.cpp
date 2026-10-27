@@ -83,6 +83,60 @@ unsigned long last_update = 0;
 unsigned long last_screen_change = 0;
 int drive_step = 0;
 
+// --- Vehicle model, stepped every 50 ms (docs/index.html runs the same model) ---
+// A 120 s cycle of target speeds; the car follows them with limited acceleration
+// and braking, so speed, rpm, temperature and fuel change smoothly like a real drive.
+#define DRIVE_CYCLE_STEPS 2400  // 120 s / 50 ms
+
+float targetSpeed(float t) {
+  if (t < 5)   return 0;                                                   // idle
+  if (t < 25)  return 110;                                                 // pull away
+  if (t < 60)  return 110 + 3.0f * sinf(t * 0.35f) + 1.5f * sinf(t * 1.3f);  // cruise
+  if (t < 70)  return 60;                                                  // slow down
+  if (t < 90)  return 47 + 12.0f * sinf((t - 70) * 0.45f);                 // city traffic
+  if (t < 100) return 0;                                                   // brake to a stop
+  if (t < 105) return 0;                                                   // stopped
+  if (t < 115) return 50;                                                  // pull away again
+  return 0;                                                                // stop
+}
+
+void updateVehicle(float t) {
+  const float dt = 0.05f;
+  float target = targetSpeed(t);
+  float dv = target - vehicle.speed;
+  float max_up = 3.5f * dt, max_down = 6.0f * dt;                // km/h per step
+  bool accelerating = dv > 0.5f;
+  if (dv > max_up) dv = max_up;
+  if (dv < -max_down) dv = -max_down;
+  vehicle.speed += dv + (vehicle.speed > 1 ? random(-5, 6) * 0.01f : 0);
+  if (vehicle.speed < 0.2f && target == 0) vehicle.speed = 0;
+
+  // 5-speed gearbox: engine speed follows the gear ratio, plus a bit while accelerating
+  static const float upshift[] = {15, 30, 50, 75};
+  static const float rpm_per_kmh[] = {120, 70, 48, 36, 28};
+  int gear = 0;
+  while (gear < 4 && vehicle.speed > upshift[gear]) gear++;
+  float rpm_target = vehicle.speed < 2 ? 800 : vehicle.speed * rpm_per_kmh[gear] + (accelerating ? 350 : 0);
+  if (rpm_target < 800) rpm_target = 800;
+  rpm_target += random(-15, 16);
+  vehicle.rpm = (int)(vehicle.rpm + (rpm_target - vehicle.rpm) * 0.25f);
+
+  // Coolant warms up to ~88 C and follows engine load; fuel burns with rpm
+  float temp_target = 86 + (vehicle.rpm - 2000) / 600.0f;
+  vehicle.temp += (temp_target - vehicle.temp) * 0.004f;
+  vehicle.fuel -= vehicle.rpm * 1.5e-6f;
+  if (vehicle.fuel < 10) vehicle.fuel = 65;  // refuel so the demo keeps running
+
+  // Short CAN fault window in the city section to show the fail-safe display
+  vehicle.fault_active = (t >= 76 && t < 84);
+  if (vehicle.fault_active)                     strcpy(vehicle.message, "COMM LOST: M2 TIMEOUT");
+  else if (vehicle.speed < 1 && target == 0)    strcpy(vehicle.message, "VEHICLE STOPPED");
+  else if (target - vehicle.speed > 3)          strcpy(vehicle.message, "ACCELERATING");
+  else if (vehicle.speed - target > 3)          strcpy(vehicle.message, "BRAKING");
+  else if (vehicle.speed > 90)                  strcpy(vehicle.message, "CRUISE");
+  else                                          strcpy(vehicle.message, "CITY TRAFFIC");
+}
+
 void IRAM_ATTR onBootButtonPress() {
   uint32_t cyc = esp_cpu_get_cycle_count();
   uint32_t now = micros();
@@ -697,7 +751,7 @@ void loop() {
   // Simulate drive cycle and RTOS tasks every 50ms
   if (millis() - last_update > 50) {
     last_update = millis();
-    drive_step = (drive_step + 1) % 600;
+    drive_step = (drive_step + 1) % DRIVE_CYCLE_STEPS;
 
     // Measure Jitter (Simulated Task Periods)
     unsigned long now_us = micros();
@@ -716,33 +770,7 @@ void loop() {
     vehicle.jobs_display++;
     vehicle.jobs_diagnostics++;
 
-    // Simulate fuel consumption and engine temperature variation
-    vehicle.fuel = 65.0 - (drive_step * 0.05);
-    if (vehicle.fuel < 10.0) vehicle.fuel = 10.0;
-    vehicle.temp = 82.0 + (vehicle.speed * 0.15);
-    if (vehicle.temp > 110.0) vehicle.temp = 110.0;
-
-    if (drive_step < 100) {
-      vehicle.speed = drive_step * 1.2;
-      vehicle.rpm = 800 + drive_step * 20;
-      vehicle.fault_active = false;
-      strcpy(vehicle.message, "SYSTEM NOMINAL");
-    } else if (drive_step < 300) {
-      vehicle.speed = 120.0;
-      vehicle.rpm = 3120;
-      vehicle.fault_active = false;
-      strcpy(vehicle.message, "CRUISE 120 KM/H");
-    } else if (drive_step < 450) {
-      vehicle.speed = 40.0;
-      vehicle.rpm = 1500;
-      vehicle.fault_active = true;
-      strcpy(vehicle.message, "COMM LOST: M2 TIMEOUT");
-    } else {
-      vehicle.speed = 0.0;
-      vehicle.rpm = 800;
-      vehicle.fault_active = false;
-      strcpy(vehicle.message, "VEHICLE STOPPED");
-    }
+    updateVehicle(drive_step * 0.05f);
 
 
     // Broadcast metrics to WebSockets
