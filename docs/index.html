@@ -8,76 +8,55 @@
         :root {
             --bg-color: #0d1117;
             --card-bg: #161b22;
+            --border: #30363d;
             --text-main: #c9d1d9;
+            --text-muted: #8b949e;
             --accent: #58a6ff;
-            --lcd-bg: #000000;
-            --lcd-blue: #0000ff;
-            --lcd-cyan: #00ffff;
-            --lcd-yellow: #ffff00;
-            --lcd-green: #00ff00;
-            --lcd-red: #ff0000;
-            --lcd-white: #ffffff;
         }
-        body { background: var(--bg-color); color: var(--text-main); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
+        * { box-sizing: border-box; }
+        body { background: var(--bg-color); color: var(--text-main); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px 16px; line-height: 1.6; }
         h1, h2, h3 { color: var(--accent); }
         a { color: var(--accent); text-decoration: none; }
         .container { max-width: 900px; margin: 0 auto; }
+        .muted { color: var(--text-muted); font-size: 14px; }
 
-        /* LCD Simulator Styles */
-        .lcd-container {
-            width: 172px;
-            height: 320px;
-            background: var(--lcd-bg);
-            border: 4px solid #333;
-            border-radius: 8px;
-            margin: 20px auto;
-            position: relative;
-            overflow: hidden;
-            font-family: 'Courier New', monospace;
-            box-shadow: 0 0 20px rgba(88, 166, 255, 0.2);
+        /* LCD simulator: the panel is 320x172 in landscape (firmware uses setRotation(1)) */
+        .board {
+            display: flex; align-items: center; justify-content: center;
+            margin: 20px auto; max-width: 560px;
         }
-        .lcd-header {
-            background: var(--lcd-blue);
-            color: var(--lcd-white);
-            padding: 4px;
-            font-size: 14px;
-            font-weight: bold;
-            text-align: center;
+        .usb {
+            width: 26px; height: 64px; flex: none;
+            background: linear-gradient(90deg, #1b1b1b, #3a3a3a);
+            border-radius: 6px 0 0 6px; border: 2px solid #c9b600; border-right: none;
         }
-        .lcd-content { padding: 10px; height: calc(100% - 30px); box-sizing: border-box; }
-        .lcd-big { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
-        .lcd-med { font-size: 18px; margin-bottom: 8px; }
-        .lcd-small { font-size: 12px; }
-        .cyan { color: var(--lcd-cyan); }
-        .yellow { color: var(--lcd-yellow); }
-        .green { color: var(--lcd-green); }
-        .red { color: var(--lcd-red); }
-        .white { color: var(--lcd-white); }
+        .bezel {
+            flex: 1; min-width: 0;
+            background: #111; border: 3px solid #9aa0a6; border-radius: 18px;
+            padding: 10px 12px; box-shadow: 0 0 24px rgba(88, 166, 255, 0.18);
+        }
+        .bezel svg { display: block; width: 100%; height: auto; border-radius: 10px; background: #000; }
+        .lcd-text { font-family: 'Courier New', Courier, monospace; font-weight: bold; dominant-baseline: hanging; white-space: pre; }
 
-        .status-bar {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            padding: 6px;
-            text-align: center;
-            font-size: 11px;
-            font-weight: bold;
-            color: #000;
-        }
-        .status-ok { background: var(--lcd-green); }
-        .status-fault { background: var(--lcd-red); color: #fff; }
-
-        /* Slides / Tabs */
-        .slides-nav { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .slides-nav { display: flex; justify-content: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
         .slide-btn {
-            background: var(--card-bg); border: 1px solid #30363d; color: var(--text-main);
-            padding: 8px 16px; cursor: pointer; border-radius: 6px; transition: 0.2s;
+            background: var(--card-bg); border: 1px solid var(--border); color: var(--text-main);
+            padding: 6px 14px; cursor: pointer; border-radius: 6px; transition: 0.2s; font-size: 14px;
         }
         .slide-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-        .info-card { background: var(--card-bg); border: 1px solid #30363d; border-radius: 10px; padding: 20px; margin-top: 30px; }
-        .wifi-box { background: #0d1117; border: 1px dashed var(--accent); padding: 15px; border-radius: 8px; text-align: center; margin: 15px 0; }
-        code { background: #30363d; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        .info-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-top: 30px; }
+        .wifi-box { background: var(--bg-color); border: 1px dashed var(--accent); padding: 15px; border-radius: 8px; text-align: center; margin: 15px 0; }
+        code { background: var(--border); padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        pre code { display: block; padding: 10px; overflow-x: auto; }
+
+        /* Real hardware media */
+        .media-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; align-items: start; }
+        .media-grid figure { margin: 0; }
+        .media-grid img { width: 100%; border-radius: 10px; border: 1px solid var(--border); display: block; }
+        .video-wrap { position: relative; width: 100%; max-width: 360px; aspect-ratio: 9 / 16; margin: 0 auto; }
+        .video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 10px; }
+        figcaption { font-size: 13px; color: var(--text-muted); margin-top: 6px; text-align: center; }
     </style>
 </head>
 <body>
@@ -88,23 +67,40 @@
 
     <div class="info-card">
         <h2>📱 Simulação do Display LCD (ESP32-C6)</h2>
-        <p>O firmware roda 6 telas em auto-rotação (5s). Clique nos botões abaixo para simular a navegação ou pressione BOOT na placa física.</p>
+        <p>Réplica do display ST7789 de 1.47" (320×172, na horizontal), com as mesmas coordenadas, cores e ciclo de condução do firmware. As 6 telas trocam a cada 5 s. Clique nos botões para navegar.</p>
 
-        <div class="slides-nav">
-            <button class="slide-btn active" onclick="setScreen(0)">1. Gauges</button>
-            <button class="slide-btn" onclick="setScreen(1)">2. Tasks</button>
-            <button class="slide-btn" onclick="setScreen(2)">3. Jitter</button>
-            <button class="slide-btn" onclick="setScreen(3)">4. ISR</button>
-            <button class="slide-btn" onclick="setScreen(4)">5. Debug</button>
-            <button class="slide-btn" onclick="setScreen(5)">6. Network</button>
+        <div class="slides-nav" id="nav">
+            <button class="slide-btn active" onclick="setScreen(0, true)">1. Gauges</button>
+            <button class="slide-btn" onclick="setScreen(1, true)">2. Tasks</button>
+            <button class="slide-btn" onclick="setScreen(2, true)">3. Jitter</button>
+            <button class="slide-btn" onclick="setScreen(3, true)">4. ISR</button>
+            <button class="slide-btn" onclick="setScreen(4, true)">5. Debug</button>
+            <button class="slide-btn" onclick="setScreen(5, true)">6. Network</button>
         </div>
 
-        <div class="lcd-container">
-            <div class="lcd-header" id="lcd-title">GAUGES [1/6]</div>
-            <div class="lcd-content" id="lcd-body">
-                <!-- Content injected by JS -->
+        <div class="board">
+            <div class="usb" title="USB-C"></div>
+            <div class="bezel">
+                <svg id="lcd" viewBox="0 0 320 172" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Simulação do LCD"></svg>
             </div>
-            <div class="status-bar status-ok" id="lcd-status">STATUS: NORMAL</div>
+        </div>
+    </div>
+
+    <div class="info-card">
+        <h2>📸 Hardware Real</h2>
+        <p>Waveshare ESP32-C6-LCD-1.47 executando o firmware do dashboard.</p>
+        <div class="media-grid">
+            <figure>
+                <img src="img/lcd_real_gauges.jpg" alt="Placa ESP32-C6 com o LCD mostrando a tela GAUGES: 120 km/h, 3120 rpm" loading="lazy">
+                <figcaption>Tela 1/6 (Gauges) na placa real; a foto foi tirada com a placa na vertical</figcaption>
+            </figure>
+            <figure>
+                <div class="video-wrap">
+                    <iframe src="https://www.youtube-nocookie.com/embed/D06m8DS3zdU" title="ICM Dashboard na ESP32-C6" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"
+                        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                </div>
+                <figcaption>Vídeo: auto-rotação das telas na placa (<a href="https://youtube.com/shorts/D06m8DS3zdU" target="_blank" rel="noopener">abrir no YouTube</a>)</figcaption>
+            </figure>
         </div>
     </div>
 
@@ -122,53 +118,109 @@
     <div class="info-card">
         <h2>⚙️ Hardware Validado</h2>
         <ul>
-            <li><strong>ESP32-C6 DevKitC-1:</strong> Display ST7789 1.47" TFT, Wi-Fi 6, WebSocket Server.</li>
-            <li><strong>STM32 Nucleo L476RG:</strong> Validação do escalonamento OSEK e proteção de recursos em ARM Cortex-M4.</li>
+            <li><strong>Waveshare ESP32-C6-LCD-1.47:</strong> display ST7789 1.47" (SPI por hardware), Wi-Fi 6, servidor HTTP + WebSocket.</li>
+            <li><strong>STM32 Nucleo L476RG:</strong> validação do escalonamento OSEK e da proteção de recursos em ARM Cortex-M4.</li>
         </ul>
         <h3>Reproduzir o Experimento</h3>
         <pre><code># Instalar PlatformIO e gravar firmware
 platformio run -d esp32_dashboard --target upload</code></pre>
+        <p class="muted">Código-fonte, relatório técnico e evidências: <a href="https://github.com/ojaneri/ee-icm-trampoline">github.com/ojaneri/ee-icm-trampoline</a></p>
     </div>
 </div>
 
 <script>
-    let currentScreen = 0;
-    const screens = [
-        { title: "GAUGES [1/6]", html: `<div class="cyan lcd-big">120 km/h</div><div class="yellow lcd-big">3120 rpm</div><div class="white lcd-med">F:65% T:82C</div>` },
-        { title: "TASKS [2/6]", html: `<div class="green lcd-med">OSEK COUNTERS</div><div class="white lcd-small">CAN_RX(p6): 4821<br>Acq 10ms: 4821<br>Proc 20ms: 2410<br>Disp 50ms: 964<br>Diag 100ms: 482</div><div class="white lcd-small" style="margin-top:10px">CPU: 2.9%</div>` },
-        { title: "JITTER [3/6]", html: `<div class="cyan lcd-med">PERIOD DEV</div><div style="display:flex; align-items:flex-end; height:80px; gap:4px; margin-top:20px;">${Array(8).fill(0).map(()=>`<div style="width:12px; background:cyan; height:${20+Math.random()*40}px"></div>`).join('')}</div><div class="white lcd-small" style="margin-top:10px">ACQ 10ms LAST 8</div>` },
-        { title: "ISR LATENCY [4/6]", html: `<div class="white lcd-med">HW INTERRUPT</div><div class="green lcd-big">8 µs</div><div class="cyan lcd-small">EDGE -> ISR ENTRY</div><div class="white lcd-small" style="margin-top:20px">GPIO9 FALLING TRIGGER</div>` },
-        { title: "DEBUG [5/6]", html: `<div class="yellow lcd-med">FAULT METRICS</div><div class="white lcd-small">Misses: 0<br>Overruns: 0<br>Torn: 0 (Locked)<br>CAN FIFO: OK</div>` },
-        { title: "NETWORK [6/6]", html: `<div class="cyan lcd-med">WI-FI AP</div><div class="white lcd-small">SSID: ICM-Dashboard-AP<br>IP: 192.168.4.1<br>WS port: 81</div><div class="white lcd-small" style="margin-top:20px">BOOT = Reset</div>` }
-    ];
+    // Mirrors esp32_dashboard/src/main.cpp: same 320x172 coordinates, RGB565 colors and drive cycle.
+    const C = { BLACK: '#000', WHITE: '#fff', BLUE: '#00f', RED: '#f00', GREEN: '#0f0',
+                CYAN: '#0ff', YELLOW: '#ff0', MAGENTA: '#f0f' };
+    const NUM_SCREENS = 6;
+    const svg = document.getElementById('lcd');
+    let currentScreen = 0, lastChange = Date.now();
 
-    function setScreen(idx) {
-        currentScreen = idx;
-        document.getElementById('lcd-title').innerText = screens[idx].title;
-        document.getElementById('lcd-body').innerHTML = screens[idx].html;
+    const v = { speed: 0, rpm: 800, fuel: 65, temp: 82, fault: false, msg: 'SYSTEM NOMINAL',
+                acq: 0, proc: 0, disp: 0, diag: 0, step: 0 };
+    const jitter = Array(8).fill(10000);
 
-        // Update buttons
-        document.querySelectorAll('.slide-btn').forEach((btn, i) => {
-            btn.classList.toggle('active', i === idx);
-        });
-
-        // Simulate fault on screen 0 randomly for demo
-        const statusEl = document.getElementById('lcd-status');
-        if (idx === 0 && Math.random() > 0.8) {
-            statusEl.className = 'status-bar status-fault';
-            statusEl.innerText = 'COMM LOST: M2 TIMEOUT';
-        } else {
-            statusEl.className = 'status-bar status-ok';
-            statusEl.innerText = 'STATUS: NORMAL (0 TORN)';
-        }
+    function stepDriveCycle() {  // same profile as loop() in the firmware, every 50 ms
+        v.step = (v.step + 1) % 600;
+        v.acq++; v.proc++; v.disp++; v.diag++;
+        jitter[v.acq % 8] = 10000 + Math.round((Math.random() - 0.5) * 6000);
+        v.fuel = Math.max(10, 65 - v.step * 0.05);
+        v.temp = Math.min(110, 82 + v.speed * 0.15);
+        if (v.step < 100)      { v.speed = v.step * 1.2; v.rpm = 800 + v.step * 20; v.fault = false; v.msg = 'SYSTEM NOMINAL'; }
+        else if (v.step < 300) { v.speed = 120; v.rpm = 3120; v.fault = false; v.msg = 'CRUISE 120 KM/H'; }
+        else if (v.step < 450) { v.speed = 40;  v.rpm = 1500; v.fault = true;  v.msg = 'COMM LOST: M2 TIMEOUT'; }
+        else                   { v.speed = 0;   v.rpm = 800;  v.fault = false; v.msg = 'VEHICLE STOPPED'; }
     }
 
-    // Auto rotate simulation
-    setInterval(() => {
-        setScreen((currentScreen + 1) % 6);
-    }, 5000);
+    // Adafruit GFX built-in font: 6x8 px per char at size 1
+    function text(x, y, size, color, str) {
+        const esc = String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        return `<text class="lcd-text" x="${x}" y="${y}" font-size="${8 * size}" fill="${color}" textLength="${6 * size * str.length - size}" lengthAdjust="spacingAndGlyphs">${esc}</text>`;
+    }
+    const rect = (x, y, w, h, color) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}"/>`;
+    const header = (title) => rect(0, 0, 320, 28, C.BLUE) + text(4, 6, 2, C.WHITE, `${title} [${currentScreen + 1}/${NUM_SCREENS}]`);
 
-    // Init
+    const screens = [
+        () => header('GAUGES')
+            + text(6, 36, 3, C.CYAN, `${v.speed.toFixed(0)} km/h`)
+            + text(6, 72, 3, C.YELLOW, `${v.rpm} rpm`)
+            + text(6, 108, 2, C.WHITE, `F:${v.fuel.toFixed(0)}% T:${v.temp.toFixed(0)}C`)
+            + (v.fault ? rect(0, 138, 320, 34, C.RED) + text(4, 148, 1, C.WHITE, v.msg)
+                       : rect(0, 138, 320, 34, C.GREEN) + text(4, 148, 1, C.BLACK, 'STATUS: NORMAL (0 TORN)')),
+        () => header('TASKS')
+            + text(6, 36, 2, C.GREEN, 'OSEK COUNTERS')
+            + text(6, 58, 1, C.GREEN, `CAN_RX(p6): ${v.acq}`)
+            + text(6, 74, 1, C.GREEN, `Acq 10ms(p5): ${v.acq}`)
+            + text(6, 90, 1, C.GREEN, `Proc 20ms(p4): ${v.proc}`)
+            + text(6, 106, 1, C.GREEN, `Disp 50ms(p3): ${v.disp}`)
+            + text(6, 122, 1, C.GREEN, `Diag 100ms(p2): ${v.diag}`)
+            + rect(0, 144, 320, 28, C.BLUE) + text(4, 152, 1, C.WHITE, 'CPU: 2.9% Ceiling:OK'),
+        () => {
+            let bars = '';
+            jitter.forEach((p, i) => {
+                const dev = p - 10000;
+                const h = Math.max(-60, Math.min(60, Math.trunc(dev / 200)));
+                const color = Math.abs(dev) > 2000 ? C.RED : C.CYAN;
+                bars += rect(10 + i * 35, h >= 0 ? 120 - h : 120, 30, Math.abs(h), color);
+            });
+            return header('JITTER') + text(6, 36, 2, C.MAGENTA, 'PERIOD DEVIATION')
+                + text(6, 140, 1, C.WHITE, 'ACQ 10ms LAST 8 JOBS') + bars + rect(0, 120, 320, 1, C.WHITE);
+        },
+        () => header('ISR LATENCY')
+            + text(6, 45, 2, C.WHITE, 'HW INTERRUPT TEST')
+            + text(6, 85, 2, C.YELLOW, 'WAITING...')
+            + text(6, 125, 1, C.WHITE, 'PRESS BOOT BUTTON NOW')
+            + rect(0, 144, 320, 28, C.BLUE) + text(4, 152, 1, C.WHITE, 'GPIO9 FALLING EDGE TRIGGER'),
+        () => header('DEBUG')
+            + text(6, 36, 2, C.YELLOW, 'FAULT METRICS')
+            + text(6, 60, 1, C.WHITE, 'Misses: 0')
+            + text(6, 78, 1, C.WHITE, 'Overruns: 0')
+            + text(6, 96, 1, C.WHITE, 'Torn: 0 (Locked)')
+            + text(6, 114, 1, C.WHITE, 'CAN FIFO: OK')
+            + rect(0, 144, 320, 28, v.fault ? C.RED : C.BLUE)
+            + text(4, 152, 1, C.WHITE, v.fault ? v.msg : 'DTC: NO FAULTS'),
+        () => header('NETWORK')
+            + text(6, 36, 2, C.CYAN, 'WI-FI ACCESS PT')
+            + text(6, 62, 1, C.WHITE, 'SSID: ICM-Dashboard-AP')
+            + text(6, 82, 1, C.WHITE, 'IP: 192.168.4.1')
+            + text(6, 102, 1, C.WHITE, 'WS port: 81')
+            + rect(0, 144, 320, 28, C.BLUE) + text(4, 152, 1, C.WHITE, 'BOOT = ISR Test + Reset'),
+    ];
+
+    function draw() { svg.innerHTML = rect(0, 0, 320, 172, C.BLACK) + screens[currentScreen](); }
+
+    function setScreen(idx, manual) {
+        currentScreen = idx;
+        if (manual) lastChange = Date.now();
+        document.querySelectorAll('.slide-btn').forEach((btn, i) => btn.classList.toggle('active', i === idx));
+        draw();
+    }
+
+    setInterval(stepDriveCycle, 50);
+    setInterval(() => {
+        if (Date.now() - lastChange >= 5000) { lastChange = Date.now(); setScreen((currentScreen + 1) % NUM_SCREENS); }
+        else draw();
+    }, 250);
     setScreen(0);
 </script>
 </body>

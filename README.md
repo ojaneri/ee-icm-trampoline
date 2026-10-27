@@ -13,6 +13,11 @@ Protótipo de painel de instrumentos automotivo com **controle determinístico d
 ### 🌐 [Acesse a Demonstração Interativa e Documentação Completa](https://ojaneri.github.io/ee-icm-trampoline/)
 Simulação do display LCD, guia de conexão Wi-Fi e documentação técnica do projeto.
 
+<p align="center">
+  <img src="docs/img/lcd_real_gauges.jpg" alt="ESP32-C6-LCD-1.47 mostrando a tela GAUGES" width="280">
+  <br><em>Placa real na tela 1/6 · <a href="https://youtube.com/shorts/D06m8DS3zdU">vídeo das telas em funcionamento</a></em>
+</p>
+
 ---
 
 ## Hardware Validado
