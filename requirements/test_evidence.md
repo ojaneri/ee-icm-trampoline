@@ -1,6 +1,6 @@
 # Test evidence
 
-Osvaldo Janeri Filho <janeri@gmail.com>\
+Osvaldo Janeri Filho · Norton Dezonet (@dezonet) · Vinicius Antunes\
 Project #2 — Automotive Instrument Cluster Module Using Trampoline RTOS
 
 Everything below is console output from real runs, produced by

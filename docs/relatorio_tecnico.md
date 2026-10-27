@@ -3,7 +3,7 @@
 **Project #2 — Automotive Instrument Cluster Module Using Trampoline RTOS**\
 Disciplina Sistemas Embarcados — PPGEE, UTFPR Ponta Grossa\
 Prof. Max Mauro Dias Santos\
-Equipe: Osvaldo Janeri Filho <janeri@gmail.com>, *[colega 2]*, *[colega 3]*\
+Equipe: Osvaldo Janeri Filho <janeri@gmail.com>, Norton Dezonet (@dezonet), Vinicius Antunes\
 Apresentação: 27/10/2026\
 Repositório: <https://github.com/ojaneri/ee-icm-trampoline>
 

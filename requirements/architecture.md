@@ -1,6 +1,6 @@
 # ICM architecture: tasks, events, alarms, ISR, resources
 
-Osvaldo Janeri Filho <janeri@gmail.com>\
+Osvaldo Janeri Filho · Norton Dezonet (@dezonet) · Vinicius Antunes\
 Project #2 — Automotive Instrument Cluster Module Using Trampoline RTOS
 
 This document is the design behind `src/icm.oil` and `src/icm_app.c`. Every

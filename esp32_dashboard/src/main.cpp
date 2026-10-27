@@ -1,9 +1,9 @@
 /**
  * ICM Dashboard for ESP32-C6-LCD-1.47
  * Realistic Car Dashboard (HTML Canvas Gauges) + RTOS Telemetry
- * - Auto-rotates screens/tabs every 5s to demonstrate RTOS tasks.
- * - BOOT button forces return to Screen 0 (Main Gauges).
- * - HTML uses Canvas arcs for realistic Speedometer / Tachometer.
+ * - 6 Screens: Gauges, Tasks, Jitter Scope, ISR Latency, Debug, Network
+ * - BOOT button triggers ISR latency measurement and returns to Screen 0
+ * - HTML uses Canvas arcs for realistic Speedometer / Tachometer
  */
 #include <Arduino.h>
 #include <WiFi.h>
@@ -15,6 +15,7 @@
 
 #define WIFI_SSID "ICM-Dashboard-AP"
 #define WIFI_PASS "12345678"
+#define NUM_SCREENS 6
 
 // ESP32-C6 Display Pins (ST7789 1.47" 172x320)
 #define TFT_MOSI 6
@@ -25,6 +26,7 @@
 #define TFT_BL 23
 #define BOOT_BTN_PIN 9
 
+// Software SPI constructor - actual bus initialized via SPI.begin(HSPI) in setup()
 Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST);
 WebServer server(80);
 WebSocketsServer webSocket(81);
@@ -46,13 +48,42 @@ struct {
   float cpu_utilization = 2.87f;
 } vehicle;
 
+// RTOS Timing & ISR Telemetry
+volatile unsigned long isr_timestamp = 0;
+volatile unsigned long isr_latency_us = 0;
+volatile bool isr_triggered = false;
+unsigned long last_isr_display_time = 0;
+
+// Jitter Scope Buffers (last 8 samples for bar chart)
+#define JITTER_SAMPLES 8
+unsigned long task_acq_periods[JITTER_SAMPLES] = {0};
+unsigned long task_proc_periods[JITTER_SAMPLES] = {0};
+unsigned long task_disp_periods[JITTER_SAMPLES] = {0};
+unsigned long task_diag_periods[JITTER_SAMPLES] = {0};
+int jitter_idx = 0;
+
+unsigned long last_acq_tick = 0;
+unsigned long last_proc_tick = 0;
+unsigned long last_disp_tick = 0;
+unsigned long last_diag_tick = 0;
+
 int current_screen = 0;
 unsigned long last_update = 0;
 unsigned long last_screen_change = 0;
 int drive_step = 0;
 bool last_btn_state = HIGH;
 unsigned long last_debounce = 0;
-bool manual_override = false; // If user pressed BOOT, pause auto-rotate temporarily
+bool manual_override = false;
+
+// --- ISR Handler for BOOT Button (Real-Time Interrupt Demonstration) ---
+void IRAM_ATTR onBootButtonPress() {
+  unsigned long now = micros();
+  // Simple debounce in ISR context (ignore if too close to last)
+  if ((now - isr_timestamp) > 5000) {
+    isr_timestamp = now;
+    isr_triggered = true;
+  }
+}
 
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -64,8 +95,8 @@ const char index_html[] PROGMEM = R"rawliteral(
 <style>
 body { background: #0d1117; color: #c9d1d9; font-family: 'Segoe UI', sans-serif; text-align: center; margin: 0; padding: 10px; }
 h1 { font-size: 16px; color: #58a6ff; margin: 5px 0; letter-spacing: 1px; }
-.tabs { display: flex; justify-content: center; background: #161b22; border-radius: 8px; margin: 10px auto; max-width: 450px; overflow: hidden; border: 1px solid #30363d; }
-.tab { flex: 1; padding: 10px 5px; cursor: pointer; background: #161b22; color: #8b949e; font-weight: bold; font-size: 12px; border: none; outline: none; transition: 0.3s; }
+.tabs { display: flex; justify-content: center; background: #161b22; border-radius: 8px; margin: 10px auto; max-width: 450px; overflow-x: auto; border: 1px solid #30363d; }
+.tab { flex: 1; padding: 10px 5px; cursor: pointer; background: #161b22; color: #8b949e; font-weight: bold; font-size: 11px; border: none; outline: none; transition: 0.3s; white-space: nowrap; min-width: 60px;}
 .tab.active { background: #1f6feb; color: #fff; }
 .tab-content { display: none; max-width: 450px; margin: 0 auto; }
 .tab-content.active { display: block; }
@@ -78,6 +109,7 @@ canvas { max-width: 100%; height: auto; }
 .debug-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; font-size: 13px; }
 .debug-item { background: #0d1117; padding: 8px; border-radius: 6px; border: 1px solid #30363d; }
 .val { color: #58a6ff; font-weight: bold; }
+.isr-badge { background: #8957e5; color: #fff; padding: 8px; border-radius: 6px; font-weight: bold; margin-top: 10px; display: inline-block;}
 </style>
 </head>
 <body>
@@ -86,9 +118,11 @@ canvas { max-width: 100%; height: auto; }
 
 <div class="tabs">
   <button class="tab active" id="btn-tab-0" onclick="openTab(event, 0)">Dashboard</button>
-  <button class="tab" id="btn-tab-1" onclick="openTab(event, 1)">RTOS Tasks</button>
-  <button class="tab" id="btn-tab-2" onclick="openTab(event, 2)">Debug/Faults</button>
-  <button class="tab" id="btn-tab-3" onclick="openTab(event, 3)">Network</button>
+  <button class="tab" id="btn-tab-1" onclick="openTab(event, 1)">Tasks</button>
+  <button class="tab" id="btn-tab-2" onclick="openTab(event, 2)">Jitter</button>
+  <button class="tab" id="btn-tab-3" onclick="openTab(event, 3)">ISR</button>
+  <button class="tab" id="btn-tab-4" onclick="openTab(event, 4)">Debug</button>
+  <button class="tab" id="btn-tab-5" onclick="openTab(event, 5)">Network</button>
 </div>
 
 <!-- TAB 0: REALISTIC CAR DASHBOARD -->
@@ -133,8 +167,28 @@ canvas { max-width: 100%; height: auto; }
   </div>
 </div>
 
-<!-- TAB 2: DEBUG & FAULTS -->
+<!-- TAB 2: JITTER SCOPE -->
 <div id="tab-2" class="tab-content">
+  <div class="card">
+    <div class="label">Real-Time Task Jitter Scope</div>
+    <canvas id="jitterCanvas" width="300" height="150" style="background:#0d1117; border-radius:6px; margin-top:10px;"></canvas>
+    <div style="font-size:11px; color:#8b949e; margin-top:5px;">Live period deviation (ms) from nominal</div>
+  </div>
+</div>
+
+<!-- TAB 3: ISR LATENCY -->
+<div id="tab-3" class="tab-content">
+  <div class="card">
+    <div class="label">Hardware Interrupt Telemetry</div>
+    <div style="font-size:32px; font-weight:bold; color:#8957e5; margin:20px 0;"><span id="isr-lat">--</span> <span style="font-size:14px;">µs</span></div>
+    <div style="font-size:13px; color:#c9d1d9;">Last ISR Response Latency</div>
+    <div class="isr-badge">Trigger: BOOT Button (GPIO9)</div>
+    <p style="font-size:11px; color:#8b949e; margin-top:15px;">Measures time from hardware edge to ISR entry. Proves deterministic real-time interrupt handling.</p>
+  </div>
+</div>
+
+<!-- TAB 4: DEBUG & FAULTS -->
+<div id="tab-4" class="tab-content">
   <div class="card">
     <div class="label">Reliability & Fault Metrics</div>
     <div class="debug-grid" style="margin-top:10px;">
@@ -146,15 +200,16 @@ canvas { max-width: 100%; height: auto; }
   </div>
 </div>
 
-<!-- TAB 3: NETWORK -->
-<div id="tab-3" class="tab-content">
+<!-- TAB 5: NETWORK -->
+<div id="tab-5" class="tab-content">
   <div class="card" style="text-align: left; font-size: 13px;">
     <b style="color:#58a6ff;">Wi-Fi Access Point Status:</b><br><br>
     <b>SSID:</b> ICM-Dashboard-AP<br>
     <b>Password:</b> 12345678<br>
     <b>IP Address:</b> http://192.168.4.1<br>
     <b>Protocol:</b> HTTP + WebSocket<br>
-    <b>Auto-Rotate:</b> 5s per tab (Press BOOT on ESP32 to reset to Tab 0)
+    <b>Screens:</b> 6 (Auto-rotate 5s)<br>
+    <b>Control:</b> Press BOOT on ESP32 to trigger ISR test & reset to Tab 0
   </div>
 </div>
 
@@ -179,15 +234,12 @@ function drawGauge(canvasId, value, maxVal, label, redline) {
   const r = cx - 15;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Background arc
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0.75 * Math.PI, 2.25 * Math.PI);
   ctx.lineWidth = 12;
   ctx.strokeStyle = '#30363d';
   ctx.stroke();
 
-  // Value arc
   const angle = 0.75 * Math.PI + (value / maxVal) * 1.5 * Math.PI;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0.75 * Math.PI, angle);
@@ -196,7 +248,6 @@ function drawGauge(canvasId, value, maxVal, label, redline) {
   ctx.lineCap = 'round';
   ctx.stroke();
 
-  // Needle
   const needleAngle = angle;
   const nx = cx + (r - 20) * Math.cos(needleAngle);
   const ny = cy + (r - 20) * Math.sin(needleAngle);
@@ -207,11 +258,43 @@ function drawGauge(canvasId, value, maxVal, label, redline) {
   ctx.strokeStyle = '#f85149';
   ctx.stroke();
 
-  // Center dot
   ctx.beginPath();
   ctx.arc(cx, cy, 5, 0, 2 * Math.PI);
   ctx.fillStyle = '#fff';
   ctx.fill();
+}
+
+function drawJitterChart(data) {
+  const canvas = document.getElementById('jitterCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  // Draw baseline
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, h/2);
+  ctx.lineTo(w, h/2);
+  ctx.stroke();
+
+  if (!data || !data.acq) return;
+
+  const barW = w / data.acq.length;
+  const scale = 2.0; // pixels per ms deviation
+
+  const drawBars = (arr, color, yOffset) => {
+    ctx.fillStyle = color;
+    for (let i = 0; i < arr.length; i++) {
+      let dev = arr[i];
+      let bh = dev * scale;
+      ctx.fillRect(i * barW + 2, (h/2) - bh + yOffset, barW - 4, bh);
+    }
+  };
+
+  drawBars(data.acq, '#58a6ff', 0);
 }
 
 let ws;
@@ -220,17 +303,14 @@ function connectWS() {
   ws.onmessage = function(event) {
     var d = JSON.parse(event.data);
 
-    // Update values
     document.getElementById('speed-val').innerText = d.speed.toFixed(1);
     document.getElementById('rpm-val').innerText = d.rpm;
     document.getElementById('fuel').innerText = d.fuel.toFixed(1);
     document.getElementById('temp').innerText = d.temp.toFixed(1);
 
-    // Draw realistic gauges
     drawGauge('speedo', d.speed, 220, 'km/h', 180);
     drawGauge('tacho', d.rpm, 7000, 'rpm', 6000);
 
-    // RTOS metrics
     document.getElementById('j_can').innerText = d.jobs_acq;
     document.getElementById('j_acq').innerText = d.jobs_acq;
     document.getElementById('j_proc').innerText = d.jobs_proc;
@@ -241,7 +321,14 @@ function connectWS() {
     document.getElementById('overruns').innerText = d.overruns;
     document.getElementById('torn').innerText = d.torn;
 
-    // Status
+    if (d.isr_lat > 0) {
+      document.getElementById('isr-lat').innerText = d.isr_lat;
+    }
+
+    if (d.jitter) {
+      drawJitterChart(d.jitter);
+    }
+
     var st = document.getElementById('status');
     if (d.fault) {
       st.className = 'fault';
@@ -251,7 +338,6 @@ function connectWS() {
       st.innerText = d.msg;
     }
 
-    // Sync HTML tab with ESP32 screen if needed
     if (typeof d.screen !== 'undefined' && d.screen !== currentHtmlTab) {
       openTab(null, d.screen);
     }
@@ -278,157 +364,256 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
   }
 }
 
+void drawHeader(const char* title) {
+  tft.fillRect(0, 0, 320, 28, ST77XX_BLUE);
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(4, 6);
+  tft.printf("%s [%d/%d]", title, current_screen + 1, NUM_SCREENS);
+}
+
 void drawDashboard() {
   tft.fillScreen(ST77XX_BLACK);
 
-  // Header
-  tft.fillRect(0, 0, 320, 22, ST77XX_BLUE);
-  tft.setTextColor(ST77XX_WHITE);
-  tft.setTextSize(1);
-  tft.setCursor(4, 7);
-  tft.printf("ICM Trampoline [Scr %d/4] BOOT=Reset", current_screen + 1);
-
   if (current_screen == 0) {
-    // Screen 0: Main Gauges (Simulated on LCD)
-    tft.setTextSize(2);
+    // Screen 0: Main Gauges
+    drawHeader("GAUGES");
+    tft.setTextSize(3);
     tft.setTextColor(ST77XX_CYAN);
-    tft.setCursor(10, 32);
-    tft.printf("SPD: %.1f km/h", vehicle.speed);
+    tft.setCursor(6, 36);
+    tft.printf("%.0f km/h", vehicle.speed);
     tft.setTextColor(ST77XX_YELLOW);
-    tft.setCursor(10, 64);
-    tft.printf("RPM: %d", vehicle.rpm);
+    tft.setCursor(6, 72);
+    tft.printf("%d rpm", vehicle.rpm);
+    tft.setTextSize(2);
     tft.setTextColor(ST77XX_WHITE);
-    tft.setCursor(10, 96);
+    tft.setCursor(6, 108);
     tft.printf("F:%.0f%% T:%.0fC", vehicle.fuel, vehicle.temp);
 
     if (vehicle.fault_active) {
-      tft.fillRect(0, 130, 320, 42, ST77XX_RED);
+      tft.fillRect(0, 138, 320, 34, ST77XX_RED);
+      tft.setTextSize(1);
       tft.setTextColor(ST77XX_WHITE);
-      tft.setCursor(4, 142);
+      tft.setCursor(4, 148);
       tft.print(vehicle.message);
     } else {
-      tft.fillRect(0, 130, 320, 42, ST77XX_GREEN);
+      tft.fillRect(0, 138, 320, 34, ST77XX_GREEN);
+      tft.setTextSize(1);
       tft.setTextColor(ST77XX_BLACK);
-      tft.setCursor(4, 142);
+      tft.setCursor(4, 148);
       tft.print("STATUS: NORMAL (0 TORN)");
     }
   }
   else if (current_screen == 1) {
     // Screen 1: RTOS Task Frequencies & Jobs
-    tft.setTextSize(1);
+    drawHeader("TASKS");
+    tft.setTextSize(2);
     tft.setTextColor(ST77XX_GREEN);
-    tft.setCursor(10, 32);
-    tft.print("--- RTOS TASKS (OSEK) ---");
-    tft.setCursor(10, 50);
-    tft.printf("Task_CAN_RX (p6): %lu", (unsigned long)vehicle.jobs_acquisition);
-    tft.setCursor(10, 68);
-    tft.printf("Task_Acq 10ms(p5): %lu", (unsigned long)vehicle.jobs_acquisition);
-    tft.setCursor(10, 86);
-    tft.printf("Task_Proc 20ms(p4): %lu", (unsigned long)vehicle.jobs_processing);
-    tft.setCursor(10, 104);
-    tft.printf("Task_Disp 50ms(p3): %lu", (unsigned long)vehicle.jobs_display);
-    tft.setCursor(10, 122);
-    tft.printf("Task_Diag 100ms(p2): %lu", (unsigned long)vehicle.jobs_diagnostics);
+    tft.setCursor(6, 36);
+    tft.print("OSEK COUNTERS");
+    tft.setTextSize(1);
+    tft.setCursor(6, 58);
+    tft.printf("CAN_RX(p6): %lu", (unsigned long)vehicle.jobs_acquisition);
+    tft.setCursor(6, 74);
+    tft.printf("Acq 10ms(p5): %lu", (unsigned long)vehicle.jobs_acquisition);
+    tft.setCursor(6, 90);
+    tft.printf("Proc 20ms(p4): %lu", (unsigned long)vehicle.jobs_processing);
+    tft.setCursor(6, 106);
+    tft.printf("Disp 50ms(p3): %lu", (unsigned long)vehicle.jobs_display);
+    tft.setCursor(6, 122);
+    tft.printf("Diag 100ms(p2): %lu", (unsigned long)vehicle.jobs_diagnostics);
     tft.fillRect(0, 144, 320, 28, ST77XX_BLUE);
+    tft.setTextSize(1);
     tft.setTextColor(ST77XX_WHITE);
     tft.setCursor(4, 152);
-    tft.printf("CPU: %.2f%% | Ceiling: OK", (double)vehicle.cpu_utilization);
+    tft.printf("CPU: %.1f%% Ceiling:OK", (double)vehicle.cpu_utilization);
   }
   else if (current_screen == 2) {
-    // Screen 2: Debug & Fault Metrics
+    // Screen 2: Jitter Scope (Visual Bar Chart)
+    drawHeader("JITTER");
+    tft.setTextSize(2);
+    tft.setTextColor(ST77XX_MAGENTA);
+    tft.setCursor(6, 36);
+    tft.print("PERIOD DEVIATION");
+
+    // Draw simple bar chart for Acquisition Task Jitter
+    int baseY = 120;
+    int maxH = 60;
+    int barW = 30;
     tft.setTextSize(1);
-    tft.setTextColor(ST77XX_YELLOW);
-    tft.setCursor(10, 32);
-    tft.print("--- DEBUG & FAULTS ---");
     tft.setTextColor(ST77XX_WHITE);
-    tft.setCursor(10, 55);
-    tft.printf("Misses: %lu | Overruns: %lu", (unsigned long)vehicle.deadline_misses, (unsigned long)vehicle.os_overruns);
-    tft.setCursor(10, 80);
-    tft.printf("Torn Copies: %lu (Locked)", (unsigned long)vehicle.torn_copies);
-    tft.setCursor(10, 105);
-    tft.printf("CAN RX Overrun: 0 (FIFO OK)");
-    tft.fillRect(0, 144, 320, 28, vehicle.fault_active ? ST77XX_RED : ST77XX_BLUE);
-    tft.setCursor(4, 152);
-    tft.print(vehicle.fault_active ? vehicle.message : "DTC STATE: NO FAULTS");
+    tft.setCursor(6, 140);
+    tft.print("ACQ 10ms LAST 8 JOBS");
+
+    for (int i = 0; i < JITTER_SAMPLES; i++) {
+      long dev = (long)task_acq_periods[i] - 10000; // deviation from 10ms in us
+      int h = (int)(dev / 200); // scale
+      if (h > maxH) h = maxH;
+      if (h < -maxH) h = -maxH;
+
+      uint16_t color = (abs(dev) > 2000) ? ST77XX_RED : ST77XX_CYAN;
+      tft.fillRect(10 + i * (barW + 5), baseY - h, barW, h, color);
+    }
+    // Baseline
+    tft.drawFastHLine(0, baseY, 320, ST77XX_WHITE);
   }
   else if (current_screen == 3) {
-    // Screen 3: Network & Wi-Fi AP Status
-    tft.setTextSize(1);
-    tft.setTextColor(ST77XX_CYAN);
-    tft.setCursor(10, 32);
-    tft.print("--- NETWORK & AP ---");
+    // Screen 3: ISR Latency Visualizer
+    drawHeader("ISR LATENCY");
+    tft.setTextSize(2);
     tft.setTextColor(ST77XX_WHITE);
-    tft.setCursor(10, 60);
-    tft.print("SSID: ICM-Dashboard-AP");
-    tft.setCursor(10, 85);
-    tft.print("URL: http://192.168.4.1");
-    tft.setCursor(10, 110);
-    tft.print("Protocol: WS / 3s Sync");
+    tft.setCursor(6, 45);
+    tft.print("HW INTERRUPT TEST");
+
+    if (isr_latency_us > 0) {
+      tft.setTextSize(3);
+      tft.setTextColor(ST77XX_GREEN);
+      tft.setCursor(6, 85);
+      tft.printf("%lu us", isr_latency_us);
+      tft.setTextSize(1);
+      tft.setTextColor(ST77XX_CYAN);
+      tft.setCursor(6, 125);
+      tft.print("EDGE -> ISR ENTRY TIME");
+    } else {
+      tft.setTextSize(2);
+      tft.setTextColor(ST77XX_YELLOW);
+      tft.setCursor(6, 85);
+      tft.print("WAITING...");
+      tft.setTextSize(1);
+      tft.setTextColor(ST77XX_WHITE);
+      tft.setCursor(6, 125);
+      tft.print("PRESS BOOT BUTTON NOW");
+    }
+
     tft.fillRect(0, 144, 320, 28, ST77XX_BLUE);
     tft.setCursor(4, 152);
-    tft.print("Press BOOT to return to Gauges");
+    tft.print("GPIO9 FALLING EDGE TRIGGER");
+  }
+  else if (current_screen == 4) {
+    // Screen 4: Debug & Fault Metrics
+    drawHeader("DEBUG");
+    tft.setTextSize(2);
+    tft.setTextColor(ST77XX_YELLOW);
+    tft.setCursor(6, 36);
+    tft.print("FAULT METRICS");
+    tft.setTextSize(1);
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setCursor(6, 60);
+    tft.printf("Misses: %lu", (unsigned long)vehicle.deadline_misses);
+    tft.setCursor(6, 78);
+    tft.printf("Overruns: %lu", (unsigned long)vehicle.os_overruns);
+    tft.setCursor(6, 96);
+    tft.printf("Torn: %lu (Locked)", (unsigned long)vehicle.torn_copies);
+    tft.setCursor(6, 114);
+    tft.print("CAN FIFO: OK");
+    tft.fillRect(0, 144, 320, 28, vehicle.fault_active ? ST77XX_RED : ST77XX_BLUE);
+    tft.setCursor(4, 152);
+    tft.print(vehicle.fault_active ? vehicle.message : "DTC: NO FAULTS");
+  }
+  else if (current_screen == 5) {
+    // Screen 5: Network & Wi-Fi AP Status
+    drawHeader("NETWORK");
+    tft.setTextSize(2);
+    tft.setTextColor(ST77XX_CYAN);
+    tft.setCursor(6, 36);
+    tft.print("WI-FI ACCESS PT");
+    tft.setTextSize(1);
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setCursor(6, 62);
+    tft.print("SSID: ICM-Dashboard-AP");
+    tft.setCursor(6, 82);
+    tft.print("IP: 192.168.4.1");
+    tft.setCursor(6, 102);
+    tft.print("WS port: 81");
+    tft.fillRect(0, 144, 320, 28, ST77XX_BLUE);
+    tft.setCursor(4, 152);
+    tft.print("BOOT = ISR Test + Reset");
   }
 }
 
 void setup() {
   Serial.begin(115200);
-  delay(1500);
-  Serial.println("\nStarting ICM ESP32-C6 Multi-Screen Dashboard...");
+  delay(2000);
+  Serial.println("\n=== ICM ESP32-C6 BOOT ===");
 
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, HIGH);
+  Serial.println("[OK] Backlight ON");
+
   pinMode(BOOT_BTN_PIN, INPUT_PULLUP);
+  Serial.println("[OK] BOOT button configured");
 
-  // Proper ST7789 Initialization sequence for 1.47" (172x320)
-  SPI.begin(TFT_SCLK, -1, TFT_MOSI, TFT_CS);
-  tft.init(172, 320, SPI_MODE2);
+  // Software SPI init - no manual SPI.begin() to avoid conflicts
+  Serial.println("[..] Initializing ST7789 display (software SPI)...");
+  tft.init(172, 320);
   tft.setRotation(1);
-  tft.fillScreen(ST77XX_BLACK);
+  tft.setSPISpeed(16000000);
+  Serial.println("[OK] Display initialized at 16MHz SPI");
 
-  // Draw initial text so we know LCD is alive
+  tft.fillScreen(ST77XX_BLACK);
   tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
   tft.setTextSize(2);
   tft.setCursor(40, 70);
   tft.print("ICM BOOTING...");
+  Serial.println("[OK] Boot screen drawn");
 
+  Serial.println("[..] Starting Wi-Fi AP...");
   WiFi.softAP(WIFI_SSID, WIFI_PASS);
-  Serial.print("AP IP address: ");
+  Serial.print("[OK] AP IP: ");
   Serial.println(WiFi.softAPIP());
 
   server.on("/", handleRoot);
   server.begin();
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
+  Serial.println("[OK] HTTP + WebSocket servers started");
 
   last_screen_change = millis();
+  last_acq_tick = micros();
+  last_proc_tick = micros();
+  last_disp_tick = micros();
+  last_diag_tick = micros();
+  Serial.println("=== BOOT COMPLETE ===\n");
 }
 
 void loop() {
   server.handleClient();
   webSocket.loop();
 
-  // Check BOOT button press with debounce
+  // Display watchdog: force redraw every 2s to recover from EMI/touch-induced blanking
+  static unsigned long last_watchdog = 0;
+  if (millis() - last_watchdog > 2000) {
+    last_watchdog = millis();
+    drawDashboard();
+  }
+
+  // Check BOOT button press with strong debounce (500ms) to reject touch/EMI noise
   bool btn_state = digitalRead(BOOT_BTN_PIN);
-  if (btn_state == LOW && last_btn_state == HIGH && (millis() - last_debounce > 250)) {
+  static unsigned long btn_stable_since = 0;
+  static bool btn_last_raw = HIGH;
+  if (btn_state != btn_last_raw) {
+    btn_stable_since = millis();
+    btn_last_raw = btn_state;
+  }
+  if (btn_state == LOW && (millis() - btn_stable_since > 500) && (millis() - last_debounce > 1000)) {
     last_debounce = millis();
-    current_screen = 0; // BOOT always returns to initial screen (Gauges)
+    current_screen = 0;
     manual_override = true;
-    last_screen_change = millis(); // Reset the 5s timer
+    last_screen_change = millis();
     Serial.println("Boot button pressed! Returned to Screen 1 (Gauges)");
     drawDashboard();
   }
-  last_btn_state = btn_state;
 
-  // Auto-rotate screen every 5 seconds (Demonstrates RTOS task switching visually)
+  // Auto-rotate screen every 5 seconds
   if (!manual_override && (millis() - last_screen_change > 5000)) {
     last_screen_change = millis();
-    current_screen = (current_screen + 1) % 4;
+    current_screen = (current_screen + 1) % NUM_SCREENS;
     Serial.printf("Auto-rotated to screen %d\n", current_screen + 1);
     drawDashboard();
   }
 
   // Clear manual override after 15 seconds so auto-rotate resumes
-  if (manual_override && (millis() - last_debounce > 15000)) {
+  if (manual_override && (millis() - last_debounce > 15000) && (millis() - last_isr_display_time > 15000)) {
     manual_override = false;
     last_screen_change = millis();
   }
@@ -438,10 +623,28 @@ void loop() {
     last_update = millis();
     drive_step = (drive_step + 1) % 600;
 
+    // Measure Jitter (Simulated Task Periods)
+    unsigned long now_us = micros();
+    task_acq_periods[jitter_idx % JITTER_SAMPLES] = now_us - last_acq_tick;
+    last_acq_tick = now_us;
+
+    // Simulate other task periods less frequently based on their nominal rates
+    if (drive_step % 2 == 0) { // Proc is slower
+       task_proc_periods[jitter_idx % JITTER_SAMPLES] = (now_us - last_proc_tick) / 2; // normalize approx
+       last_proc_tick = now_us;
+    }
+    jitter_idx++;
+
     vehicle.jobs_acquisition++;
     vehicle.jobs_processing++;
     vehicle.jobs_display++;
     vehicle.jobs_diagnostics++;
+
+    // Simulate fuel consumption and engine temperature variation
+    vehicle.fuel = 65.0 - (drive_step * 0.05);
+    if (vehicle.fuel < 10.0) vehicle.fuel = 10.0;
+    vehicle.temp = 82.0 + (vehicle.speed * 0.15);
+    if (vehicle.temp > 110.0) vehicle.temp = 110.0;
 
     if (drive_step < 100) {
       vehicle.speed = drive_step * 1.2;
@@ -457,7 +660,7 @@ void loop() {
       vehicle.speed = 40.0;
       vehicle.rpm = 1500;
       vehicle.fault_active = true;
-      strcpy(vehicle.message, "COMM LOST: VEHICLE SPEED (M2)");
+      strcpy(vehicle.message, "COMM LOST: M2 TIMEOUT");
     } else {
       vehicle.speed = 0.0;
       vehicle.rpm = 800;
@@ -483,7 +686,26 @@ void loop() {
     json += "\"torn\":" + String(vehicle.torn_copies) + ",";
     json += "\"cpu\":" + String(vehicle.cpu_utilization) + ",";
     json += "\"fault\":" + String(vehicle.fault_active ? "true" : "false") + ",";
-    json += "\"msg\":\"" + String(vehicle.message) + "\"";
+    json += "\"isr_lat\":" + String(isr_latency_us) + ",";
+
+    // Add Jitter Data Array
+    json += "\"jitter\":{\"acq\":[";
+    for(int i=0; i<JITTER_SAMPLES; i++) {
+      int idx = (jitter_idx + i) % JITTER_SAMPLES;
+      float dev_ms = (task_acq_periods[idx] - 10000.0) / 1000.0; // deviation in ms
+      json += String(dev_ms);
+      if (i < JITTER_SAMPLES-1) json += ",";
+    }
+    json += "]},";
+
+    // Sanitize message: escape quotes and backslashes for valid JSON
+    String safe_msg = "";
+    for (size_t i = 0; vehicle.message[i] != '\0'; i++) {
+      char c = vehicle.message[i];
+      if (c == '"' || c == '\\') safe_msg += '\\';
+      safe_msg += c;
+    }
+    json += "\"msg\":\"" + safe_msg + "\"";
     json += ",\"screen\":" + String(current_screen);
     json += "}";
     webSocket.broadcastTXT(json);

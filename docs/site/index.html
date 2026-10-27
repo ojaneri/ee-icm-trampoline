@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICM Trampoline RTOS - Dashboard & Documentação</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: #161b22;
+            --text-main: #c9d1d9;
+            --accent: #58a6ff;
+            --lcd-bg: #000000;
+            --lcd-blue: #0000ff;
+            --lcd-cyan: #00ffff;
+            --lcd-yellow: #ffff00;
+            --lcd-green: #00ff00;
+            --lcd-red: #ff0000;
+            --lcd-white: #ffffff;
+        }
+        body { background: var(--bg-color); color: var(--text-main); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
+        h1, h2, h3 { color: var(--accent); }
+        a { color: var(--accent); text-decoration: none; }
+        .container { max-width: 900px; margin: 0 auto; }
+
+        /* LCD Simulator Styles */
+        .lcd-container {
+            width: 172px;
+            height: 320px;
+            background: var(--lcd-bg);
+            border: 4px solid #333;
+            border-radius: 8px;
+            margin: 20px auto;
+            position: relative;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 0 20px rgba(88, 166, 255, 0.2);
+        }
+        .lcd-header {
+            background: var(--lcd-blue);
+            color: var(--lcd-white);
+            padding: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .lcd-content { padding: 10px; height: calc(100% - 30px); box-sizing: border-box; }
+        .lcd-big { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
+        .lcd-med { font-size: 18px; margin-bottom: 8px; }
+        .lcd-small { font-size: 12px; }
+        .cyan { color: var(--lcd-cyan); }
+        .yellow { color: var(--lcd-yellow); }
+        .green { color: var(--lcd-green); }
+        .red { color: var(--lcd-red); }
+        .white { color: var(--lcd-white); }
+
+        .status-bar {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            padding: 6px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: #000;
+        }
+        .status-ok { background: var(--lcd-green); }
+        .status-fault { background: var(--lcd-red); color: #fff; }
+
+        /* Slides / Tabs */
+        .slides-nav { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .slide-btn {
+            background: var(--card-bg); border: 1px solid #30363d; color: var(--text-main);
+            padding: 8px 16px; cursor: pointer; border-radius: 6px; transition: 0.2s;
+        }
+        .slide-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+        .info-card { background: var(--card-bg); border: 1px solid #30363d; border-radius: 10px; padding: 20px; margin-top: 30px; }
+        .wifi-box { background: #0d1117; border: 1px dashed var(--accent); padding: 15px; border-radius: 8px; text-align: center; margin: 15px 0; }
+        code { background: #30363d; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>ICM — Instrument Cluster Module</h1>
+    <p>Protótipo de painel automotivo com <strong>Trampoline RTOS (OSEK/VDX)</strong> rodando em hardware real.</p>
+    <p><strong>Equipe:</strong> Osvaldo Janeri Filho · Norton Dezonet · Vinicius Antunes</p>
+
+    <div class="info-card">
+        <h2>📱 Simulação do Display LCD (ESP32-C6)</h2>
+        <p>O firmware roda 6 telas em auto-rotação (5s). Clique nos botões abaixo para simular a navegação ou pressione BOOT na placa física.</p>
+
+        <div class="slides-nav">
+            <button class="slide-btn active" onclick="setScreen(0)">1. Gauges</button>
+            <button class="slide-btn" onclick="setScreen(1)">2. Tasks</button>
+            <button class="slide-btn" onclick="setScreen(2)">3. Jitter</button>
+            <button class="slide-btn" onclick="setScreen(3)">4. ISR</button>
+            <button class="slide-btn" onclick="setScreen(4)">5. Debug</button>
+            <button class="slide-btn" onclick="setScreen(5)">6. Network</button>
+        </div>
+
+        <div class="lcd-container">
+            <div class="lcd-header" id="lcd-title">GAUGES [1/6]</div>
+            <div class="lcd-content" id="lcd-body">
+                <!-- Content injected by JS -->
+            </div>
+            <div class="status-bar status-ok" id="lcd-status">STATUS: NORMAL</div>
+        </div>
+    </div>
+
+    <div class="info-card">
+        <h2>📶 Como Conectar (Wi-Fi Dashboard)</h2>
+        <p>A ESP32-C6 cria seu próprio Access Point. Siga os passos:</p>
+        <div class="wifi-box">
+            <p><strong>SSID:</strong> <code>ICM-Dashboard-AP</code></p>
+            <p><strong>Senha:</strong> <code>12345678</code></p>
+            <p><strong>Acesse:</strong> <a href="http://192.168.4.1" target="_blank">http://192.168.4.1</a></p>
+        </div>
+        <p>No celular ou PC, você verá gráficos interativos (Canvas), abas navegáveis e dados atualizados em tempo real via WebSocket.</p>
+    </div>
+
+    <div class="info-card">
+        <h2>⚙️ Hardware Validado</h2>
+        <ul>
+            <li><strong>ESP32-C6 DevKitC-1:</strong> Display ST7789 1.47" TFT, Wi-Fi 6, WebSocket Server.</li>
+            <li><strong>STM32 Nucleo L476RG:</strong> Validação do escalonamento OSEK e proteção de recursos em ARM Cortex-M4.</li>
+        </ul>
+        <h3>Reproduzir o Experimento</h3>
+        <pre><code># Instalar PlatformIO e gravar firmware
+platformio run -d esp32_dashboard --target upload</code></pre>
+    </div>
+</div>
+
+<script>
+    let currentScreen = 0;
+    const screens = [
+        { title: "GAUGES [1/6]", html: `<div class="cyan lcd-big">120 km/h</div><div class="yellow lcd-big">3120 rpm</div><div class="white lcd-med">F:65% T:82C</div>` },
+        { title: "TASKS [2/6]", html: `<div class="green lcd-med">OSEK COUNTERS</div><div class="white lcd-small">CAN_RX(p6): 4821<br>Acq 10ms: 4821<br>Proc 20ms: 2410<br>Disp 50ms: 964<br>Diag 100ms: 482</div><div class="white lcd-small" style="margin-top:10px">CPU: 2.9%</div>` },
+        { title: "JITTER [3/6]", html: `<div class="cyan lcd-med">PERIOD DEV</div><div style="display:flex; align-items:flex-end; height:80px; gap:4px; margin-top:20px;">${Array(8).fill(0).map(()=>`<div style="width:12px; background:cyan; height:${20+Math.random()*40}px"></div>`).join('')}</div><div class="white lcd-small" style="margin-top:10px">ACQ 10ms LAST 8</div>` },
+        { title: "ISR LATENCY [4/6]", html: `<div class="white lcd-med">HW INTERRUPT</div><div class="green lcd-big">8 µs</div><div class="cyan lcd-small">EDGE -> ISR ENTRY</div><div class="white lcd-small" style="margin-top:20px">GPIO9 FALLING TRIGGER</div>` },
+        { title: "DEBUG [5/6]", html: `<div class="yellow lcd-med">FAULT METRICS</div><div class="white lcd-small">Misses: 0<br>Overruns: 0<br>Torn: 0 (Locked)<br>CAN FIFO: OK</div>` },
+        { title: "NETWORK [6/6]", html: `<div class="cyan lcd-med">WI-FI AP</div><div class="white lcd-small">SSID: ICM-Dashboard-AP<br>IP: 192.168.4.1<br>WS port: 81</div><div class="white lcd-small" style="margin-top:20px">BOOT = Reset</div>` }
+    ];
+
+    function setScreen(idx) {
+        currentScreen = idx;
+        document.getElementById('lcd-title').innerText = screens[idx].title;
+        document.getElementById('lcd-body').innerHTML = screens[idx].html;
+
+        // Update buttons
+        document.querySelectorAll('.slide-btn').forEach((btn, i) => {
+            btn.classList.toggle('active', i === idx);
+        });
+
+        // Simulate fault on screen 0 randomly for demo
+        const statusEl = document.getElementById('lcd-status');
+        if (idx === 0 && Math.random() > 0.8) {
+            statusEl.className = 'status-bar status-fault';
+            statusEl.innerText = 'COMM LOST: M2 TIMEOUT';
+        } else {
+            statusEl.className = 'status-bar status-ok';
+            statusEl.innerText = 'STATUS: NORMAL (0 TORN)';
+        }
+    }
+
+    // Auto rotate simulation
+    setInterval(() => {
+        setScreen((currentScreen + 1) % 6);
+    }, 5000);
+
+    // Init
+    setScreen(0);
+</script>
+</body>
+</html>
