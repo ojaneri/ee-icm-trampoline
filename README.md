@@ -6,10 +6,12 @@ Sistemas Embarcados, PPGEE UTFPR Ponta Grossa — Prof. Max Mauro Dias Santos
 **Equipe:** Osvaldo Janeri Filho (@ojaneri) · Norton Dezonet (@dezonet) · Vinicius Antunes
 
 [![CI](https://github.com/ojaneri/ee-icm-trampoline/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ojaneri/ee-icm-trampoline/actions/workflows/ci.yml)
+[![GitHub Pages](https://img.shields.io/badge/🌐_Live_Demo-GitHub_Pages-blue?style=for-the-badge)](https://ojaneri.github.io/ee-icm-trampoline/)
 
 Protótipo de painel de instrumentos automotivo com **controle determinístico de tempo real**: seis tarefas OSEK no [Trampoline RTOS](https://github.com/TrampolineRTOS/trampoline) (OSEK/VDX, API alinhada ao AUTOSAR OS 4.2), entrada CAN com interrupção e evento, estrutura de dados compartilhada sob protocolo de teto de prioridade, diagnóstico de falhas e **deploy em hardware real**.
 
-📄 **[Documentação Completa e Simulação Web](https://ojaneri.github.io/ee-icm-trampoline/)**
+### 🌐 [Acesse a Demonstração Interativa e Documentação Completa](https://ojaneri.github.io/ee-icm-trampoline/)
+Simulação do display LCD, guia de conexão Wi-Fi e documentação técnica do projeto.
 
 ---
 
