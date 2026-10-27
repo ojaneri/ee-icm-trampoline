@@ -26,6 +26,8 @@ O sistema foi validado em dois alvos físicos distintos:
 
 ### ESP32-C6: Dashboard Gráfico e Wi-Fi
 
+> ⚠️ **Known Issue (2026-10-27):** The ESP32-C6 firmware currently experiences a silent boot crash on some boards when using the Arduino framework with USB-JTAG CDC. The firmware compiles and uploads successfully, but execution halts before `setup()` on certain hardware revisions. This is under investigation — the STM32 Nucleo target and the GitHub Pages simulation remain fully functional for demonstration and grading purposes.
+
 O firmware da ESP32-C6 implementa um dashboard completo que roda localmente no display TFT de 1.47" e simultaneamente hospeda uma interface web via Wi-Fi Access Point.
 
 #### Telas do Display LCD (Auto-rotação a cada 5s)
